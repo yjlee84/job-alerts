@@ -37,6 +37,15 @@ python3 scripts/sync_job_tracker.py
 python3 scripts/build_alert_report.py
 ```
 
+## GitHub Actions Schedule
+
+The repository workflow keeps manual runs via `workflow_dispatch` and also runs once per day on GitHub Actions.
+
+- `05:00 UTC` during `April-October`
+- `06:00 UTC` during `January-March` and `November-December`
+
+This is intended to approximate `07:00` Paris time across summer/winter time. Around daylight-saving transition dates, GitHub Actions may be off by one hour for a few days because cron is UTC-only.
+
 The script:
 
 1. reads `config/sources.csv`
