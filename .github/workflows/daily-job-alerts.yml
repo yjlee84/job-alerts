@@ -1,10 +1,10 @@
 name: Job Alerts
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-  schedule:
-    - cron: "0 5 * 4-10 *"
-    - cron: "0 6 * 1-3,11-12 *"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   run-pipeline:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:

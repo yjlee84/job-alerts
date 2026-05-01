@@ -7,7 +7,7 @@ This is a `v1` local pipeline for collecting job postings from target career pag
 - `config/sources.csv`: target sources to scan
 - `data/job_listings.csv`: normalized job listings output
 - `data/fetch_runs.csv`: source-level fetch log
-- `reports/`: generated daily Markdown reports
+- `reports/`: generated Markdown reports
 - `scripts/fetch_jobs.py`: fetch and normalize job links from each source
 - `scripts/build_alert_report.py`: build the daily Markdown alert report
 - `scripts/sync_job_tracker.py`: append only new jobs into `reports/job_tracker.csv`
@@ -37,14 +37,21 @@ python3 scripts/sync_job_tracker.py
 python3 scripts/build_alert_report.py
 ```
 
-## GitHub Actions Schedule
+## Login Sync Flow
 
-The repository workflow keeps manual runs via `workflow_dispatch` and also runs once per day on GitHub Actions.
+The repository workflow keeps manual runs via `workflow_dispatch` and also runs on each push to `main`.
 
-- `05:00 UTC` during `April-October`
-- `06:00 UTC` during `January-March` and `November-December`
+The intended login-driven sync is:
 
-This is intended to approximate `07:00` Paris time across summer/winter time. Around daylight-saving transition dates, GitHub Actions may be off by one hour for a few days because cron is UTC-only.
+1. macOS loads the local LaunchAgent at login
+2. the local sync script waits until GitHub and `origin` are reachable
+3. it commits local `reports/job_tracker.csv` changes, or creates an empty trigger commit if the tracker is unchanged
+4. it runs `git pull --rebase`
+5. it pushes to `main`
+6. the GitHub Actions workflow runs the pipeline and commits updated outputs
+7. the local sync script waits for that pipeline commit, then pulls it back down
+
+This keeps `job_tracker.csv` flowing from local to GitHub first, then brings the generated listings and reports back from GitHub to local.
 
 The script:
 
@@ -60,6 +67,7 @@ The alert builder:
 2. reads `reports/job_tracker.csv`
 3. writes `New Jobs` from rows whose `Date Added` is today
 4. writes `Review Jobs` from rows whose `Status` is `Review`
+5. writes `reports/alerts_YYYY-MM-DD.md` for the current UTC run date and removes older alert report files so only one remains
 
 The tracker sync:
 
