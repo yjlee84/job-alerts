@@ -7,10 +7,11 @@ This is a `v1` local pipeline for collecting job postings from target career pag
 - `config/sources.csv`: target sources to scan
 - `data/job_listings.csv`: normalized job listings output
 - `data/fetch_runs.csv`: source-level fetch log
+- `config/filters.csv`: source-level rule configuration for Stage 1 filtering
 - `reports/`: generated Markdown reports
 - `scripts/fetch_jobs.py`: fetch and normalize job links from each source
 - `scripts/build_alert_report.py`: build the daily Markdown alert report
-- `scripts/sync_job_tracker.py`: append only new jobs into `reports/job_tracker.csv`
+- `scripts/sync_job_tracker.py`: append only matched new jobs into `reports/job_tracker.csv`
 
 ## Source Format
 
@@ -72,15 +73,17 @@ The alert builder:
 The tracker sync:
 
 1. reads `data/job_listings.csv`
-2. reads `reports/job_tracker.csv`
-3. checks whether each `Job ID` already exists in the tracker
-4. appends only unseen jobs
-5. uses default values `Status = Review` and `Next Action = Apply`
+2. reads `config/filters.csv`
+3. reads `reports/job_tracker.csv`
+4. applies source-specific filter rules in memory during the run
+5. checks whether each `Job ID` already exists in the tracker
+6. appends only unseen matched jobs
+7. uses default values `Status = Review` and `Next Action = Apply`
 
 The intended daily workflow:
 
 1. run `fetch_jobs.py` once per day
-2. run `sync_job_tracker.py` to append only new jobs into the tracker
+2. run `sync_job_tracker.py` to append only matched new jobs into the tracker
 3. run `build_alert_report.py`
 4. the report shows:
    `New Jobs`: jobs added to the tracker today

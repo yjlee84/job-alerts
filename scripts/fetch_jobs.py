@@ -179,6 +179,13 @@ def _read_existing_job_urls(path: Path) -> set[str]:
     return {row["job_url"] for row in rows if row.get("job_url")}
 
 
+def _read_csv_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", newline="", encoding="utf-8") as csv_file:
+        return list(csv.DictReader(csv_file))
+
+
 def _append_rows(path: Path, fieldnames: list[str], rows: Iterable[dict[str, str]]) -> None:
     rows = list(rows)
     if not rows:
@@ -300,13 +307,23 @@ def _smartrecruiters_title(html_text: str) -> str:
     return _extract_first_match(r'<h1 class="job-title" itemprop="title">(.*?)</h1>', html_text)
 
 
-def _smartrecruiters_job_detail(job_url: str) -> tuple[str, str, str, str]:
+def _extract_grade(text: str) -> str:
+    match = re.search(r"\bGrade:\s*([A-Z]{2,}\d+)\b", text, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    return match.group(1).upper()
+
+
+def _smartrecruiters_job_detail(job_url: str) -> tuple[str, str, str, str, str]:
     _, html_text = _fetch_html(job_url)
+    description = _full_description(html_text)
+    page_text = _strip_html_tags(html_text)
     return (
         _smartrecruiters_title(html_text),
         _smartrecruiters_location(html_text),
         _smartrecruiters_date_posted(html_text),
-        _full_description(html_text),
+        _extract_grade(page_text),
+        description,
     )
 
 
@@ -332,9 +349,10 @@ def _normalize_smartrecruiters_candidates(source: Source, candidates: list[LinkC
         detail_title = ""
         job_location = ""
         date_posted = ""
+        job_grade = ""
         description = ""
         try:
-            detail_title, job_location, date_posted, description = _smartrecruiters_job_detail(job_url)
+            detail_title, job_location, date_posted, job_grade, description = _smartrecruiters_job_detail(job_url)
         except Exception:  # noqa: BLE001
             # Keep the listing even if the detail page parse fails.
             pass
@@ -352,6 +370,7 @@ def _normalize_smartrecruiters_candidates(source: Source, candidates: list[LinkC
                 "job_url": job_url,
                 "job_location": job_location,
                 "date_posted": date_posted,
+                "job_grade": job_grade,
                 "description": description,
             }
         )
@@ -391,7 +410,7 @@ def _migrate_job_listings_schema(path: Path) -> None:
     with path.open("r", newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
         fieldnames = reader.fieldnames or []
-        if "description" in fieldnames and "description_snippet" not in fieldnames:
+        if fieldnames == JOB_LISTING_FIELDS:
             return
         rows = list(reader)
     migrated_rows: list[dict[str, str]] = []
@@ -414,24 +433,55 @@ def _migrate_job_listings_schema(path: Path) -> None:
     _rewrite_csv(path, JOB_LISTING_FIELDS, migrated_rows)
 
 
+def _listing_row(row: dict[str, str]) -> dict[str, str]:
+    return {field: row.get(field, "") for field in JOB_LISTING_FIELDS}
+
+
+def _merge_listing_details(existing_row: dict[str, str], fresh_row: dict[str, str]) -> bool:
+    changed = False
+    refreshable_fields = [
+        "job_title",
+        "job_location",
+        "date_posted",
+        "description",
+    ]
+    for field in refreshable_fields:
+        fresh_value = fresh_row.get(field, "").strip()
+        existing_value = existing_row.get(field, "").strip()
+        if fresh_value and fresh_value != existing_value:
+            existing_row[field] = fresh_value
+            changed = True
+    return changed
+
+
 def main() -> None:
     _migrate_job_listings_schema(JOB_LISTINGS_PATH)
     _ensure_csv(JOB_LISTINGS_PATH, JOB_LISTING_FIELDS)
     _ensure_csv(FETCH_RUNS_PATH, FETCH_RUN_FIELDS)
 
     sources = _read_sources(CONFIG_PATH)
-    existing_urls = _read_existing_job_urls(JOB_LISTINGS_PATH)
+    existing_rows = _read_csv_rows(JOB_LISTINGS_PATH)
+    existing_urls = {row["job_url"] for row in existing_rows if row.get("job_url")}
+    existing_rows_by_url = {row["job_url"]: row for row in existing_rows if row.get("job_url")}
     new_rows: list[dict[str, str]] = []
     fetch_logs: list[dict[str, str]] = []
+    existing_rows_updated = 0
     run_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     for source in sources:
         try:
             status_code, html_text = _fetch_html(source.careers_url)
             rows = _normalize_candidates(source, html_text)
+            for row in rows:
+                existing_row = existing_rows_by_url.get(row["job_url"])
+                if existing_row and _merge_listing_details(existing_row, row):
+                    existing_rows_updated += 1
             fresh_rows = [row for row in rows if row["job_url"] not in existing_urls]
             for row in fresh_rows:
                 existing_urls.add(row["job_url"])
+                listing_row = _listing_row(row)
+                existing_rows.append(listing_row)
+                existing_rows_by_url[row["job_url"]] = listing_row
             new_rows.extend(fresh_rows)
             fetch_logs.append(
                 {
@@ -485,11 +535,13 @@ def main() -> None:
                 }
             )
 
-    _append_rows(JOB_LISTINGS_PATH, JOB_LISTING_FIELDS, new_rows)
+    if new_rows or existing_rows_updated:
+        _rewrite_csv(JOB_LISTINGS_PATH, JOB_LISTING_FIELDS, existing_rows)
     _append_rows(FETCH_RUNS_PATH, FETCH_RUN_FIELDS, fetch_logs)
 
     print(f"Sources scanned: {len(sources)}")
     print(f"New jobs added: {len(new_rows)}")
+    print(f"Existing jobs refreshed: {existing_rows_updated}")
     print(f"Job listings file: {JOB_LISTINGS_PATH}")
     print(f"Fetch log file: {FETCH_RUNS_PATH}")
 
