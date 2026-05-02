@@ -72,13 +72,11 @@ def _write_job_section(lines: list[str], heading: str, rows: list[dict[str, str]
         company = row.get("company", "").strip() or "Unknown"
         title = row.get("job_title", "").strip() or "Untitled role"
         posted = row.get("date_posted", "").strip() or "Unknown"
-        location = row.get("job_location", "").strip() or "Unknown"
         url = row.get("job_url", "").strip()
         description = _snippet(row.get("description", "").strip())
 
         lines.append(f"### {company} - {title}")
         lines.append(f"- Posted: {posted}")
-        lines.append(f"- Location: {location}")
         if url:
             lines.append(f"- URL: {url}")
         if description:
@@ -101,16 +99,12 @@ def _write_review_section(
         company = tracker_row.get("Company", "").strip() or listing.get("company", "").strip() or "Unknown"
         title = tracker_row.get("Position", "").strip() or listing.get("job_title", "").strip() or "Untitled role"
         posted = listing.get("date_posted", "").strip() or "Unknown"
-        location = listing.get("job_location", "").strip() or "Unknown"
         url = tracker_row.get("Website", "").strip() or listing.get("job_url", "").strip()
         next_action = tracker_row.get("Next Action", "").strip() or "Unknown"
-        contacted = tracker_row.get("Contacted", "").strip() or "No"
 
         lines.append(f"### {company} - {title}")
         lines.append(f"- Posted: {posted}")
-        lines.append(f"- Location: {location}")
         lines.append(f"- Next Action: {next_action}")
-        lines.append(f"- Contacted: {contacted}")
         if url:
             lines.append(f"- URL: {url}")
         lines.append("")
