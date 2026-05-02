@@ -10,6 +10,7 @@ This is a `v1` local pipeline for collecting job postings from target career pag
 - `config/filters.csv`: source-level rule configuration for Stage 1 filtering
 - `reports/`: generated Markdown reports
 - `scripts/fetch_jobs.py`: fetch and normalize job links from each source
+- `scripts/filter_jobs.py`: rewrite `data/job_listings.csv` to only the currently matched candidate jobs
 - `scripts/build_alert_report.py`: build the daily Markdown alert report
 - `scripts/sync_job_tracker.py`: append only matched new jobs into `reports/job_tracker.csv`
 
@@ -34,6 +35,7 @@ oecd,OECD,https://example.com/careers,links,1
 
 ```bash
 python3 scripts/fetch_jobs.py
+python3 scripts/filter_jobs.py
 python3 scripts/sync_job_tracker.py
 python3 scripts/build_alert_report.py
 ```
@@ -88,19 +90,25 @@ The alert builder:
 The tracker sync:
 
 1. reads `data/job_listings.csv`
-2. reads `config/filters.csv`
-3. reads `reports/job_tracker.csv`
-4. applies source-specific filter rules in memory during the run
-5. checks whether each `Job ID` already exists in the tracker
-6. appends only unseen matched jobs
-7. uses default values `Status = Review` and `Next Action = Apply`
+2. reads `reports/job_tracker.csv`
+3. checks whether each `Job ID` already exists in the tracker
+4. appends only unseen jobs
+5. uses default values `Status = Review` and `Next Action = Apply`
+
+The filter step:
+
+1. reads `config/filters.csv`
+2. reads `data/job_listings.csv`
+3. applies the source-specific grade rules
+4. rewrites `data/job_listings.csv` to keep only matched candidate jobs
 
 The intended daily workflow:
 
 1. run `fetch_jobs.py` once per day
-2. run `sync_job_tracker.py` to append only matched new jobs into the tracker
-3. run `build_alert_report.py`
-4. the report shows:
+2. run `filter_jobs.py` to turn `job_listings.csv` into the filtered candidate list
+3. run `sync_job_tracker.py` to append only unseen candidate jobs into the tracker
+4. run `build_alert_report.py`
+5. the report shows:
    `New Jobs`: jobs added to the tracker today
    `Review Jobs`: jobs currently marked `Review` in `job_tracker.csv`
 

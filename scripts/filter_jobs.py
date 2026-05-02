@@ -28,6 +28,13 @@ def read_csv(path: Path) -> list[dict[str, str]]:
     with path.open("r", newline="", encoding="utf-8") as csv_file:
         return list(csv.DictReader(csv_file))
 
+
+def write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
 def split_grades(raw_value: str) -> set[str]:
     if not raw_value.strip():
         return set()
@@ -181,12 +188,18 @@ def filter_listings(
 
 def main() -> None:
     listings = read_csv(JOB_LISTINGS_PATH)
+    if not listings:
+        print(f"No listings found at: {JOB_LISTINGS_PATH}")
+        return
+    fieldnames = list(listings[0].keys())
     filtered_listings, matches, rejects = filter_listings(listings)
+    write_csv(JOB_LISTINGS_PATH, fieldnames, filtered_listings)
     print(f"Rules loaded: {len(read_rules())}")
     print(f"Jobs matched: {matches}")
     print(f"Jobs rejected: {rejects}")
     print(f"Listings evaluated: {len(listings)}")
-    print(f"Matched listings available in memory: {len(filtered_listings)}")
+    print(f"Filtered listings written: {len(filtered_listings)}")
+    print(f"Updated listings file: {JOB_LISTINGS_PATH}")
 
 
 if __name__ == "__main__":

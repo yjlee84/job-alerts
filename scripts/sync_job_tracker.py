@@ -6,8 +6,6 @@ import csv
 from datetime import datetime, timezone
 from pathlib import Path
 
-from filter_jobs import filter_listings, read_csv, read_rules
-
 BASE_DIR = Path(__file__).resolve().parents[1]
 JOB_LISTINGS_PATH = BASE_DIR / "data" / "job_listings.csv"
 JOB_TRACKER_PATH = BASE_DIR / "reports" / "job_tracker.csv"
@@ -34,6 +32,13 @@ def _ensure_tracker(path: Path) -> None:
         writer.writeheader()
 
 
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", newline="", encoding="utf-8") as csv_file:
+        return list(csv.DictReader(csv_file))
+
+
 def _write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
     with path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
@@ -55,9 +60,8 @@ def _today_utc() -> str:
 def sync_tracker() -> tuple[Path, int]:
     _ensure_tracker(JOB_TRACKER_PATH)
     today = _today_utc()
-    listings = read_csv(JOB_LISTINGS_PATH)
-    listings, _, _ = filter_listings(listings, read_rules())
-    tracker_rows = _migrate_tracker_schema(read_csv(JOB_TRACKER_PATH))
+    listings = _read_csv(JOB_LISTINGS_PATH)
+    tracker_rows = _migrate_tracker_schema(_read_csv(JOB_TRACKER_PATH))
     listings_by_website = {
         row.get("job_url", "").strip(): row
         for row in listings

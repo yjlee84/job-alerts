@@ -31,6 +31,7 @@ jobs:
       - name: Run job alerts pipeline
         run: |
           python3 scripts/fetch_jobs.py
+          python3 scripts/filter_jobs.py
           python3 scripts/sync_job_tracker.py
           python3 scripts/build_alert_report.py
 
