@@ -38,6 +38,21 @@ python3 scripts/sync_job_tracker.py
 python3 scripts/build_alert_report.py
 ```
 
+## Filter Format
+
+Edit `config/filters.csv` with one row per source rule:
+
+- `source_id`: source identifier from `config/sources.csv`
+- `enabled`: `1` or `0`
+- `allowed_grades`: pipe-separated allowed grades for sources that expose grades
+
+Example:
+
+```csv
+source_id,enabled,allowed_grades
+oecd_smartrecruiters,1,PAL1|PAL2|PAL3|PAL4|PAL5
+```
+
 ## Login Sync Flow
 
 The repository workflow keeps manual runs via `workflow_dispatch` and also runs on each push to `main`.

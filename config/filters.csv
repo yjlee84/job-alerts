@@ -1,2 +1,2 @@
-source_id,enabled,allowed_grades,include_title_keywords,exclude_title_keywords,include_description_keywords,exclude_description_keywords
-oecd_smartrecruiters,1,PAL1|PAL2|PAL3|PAL4|PAL5,,,,
+source_id,enabled,allowed_grades
+oecd_smartrecruiters,1,PAL1|PAL2|PAL3|PAL4|PAL5
