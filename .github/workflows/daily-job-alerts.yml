@@ -8,6 +8,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPENAI_MODEL: gpt-5.4-mini
 
 permissions:
   contents: write
@@ -16,6 +17,8 @@ jobs:
   run-pipeline:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Check out repository
@@ -28,18 +31,32 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            latexmk \
+            biber \
+            texlive-latex-base \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-extra \
+            texlive-bibtex-extra \
+            poppler-utils
+
       - name: Run job alerts pipeline
         run: |
           python3 scripts/fetch_jobs.py
           python3 scripts/filter_jobs.py
           python3 scripts/sync_job_tracker.py
+          python3 scripts/build_review_resumes.py
           python3 scripts/build_alert_report.py
 
       - name: Commit updated pipeline outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/fetch_runs.csv data/job_listings.csv reports/job_tracker.csv reports/alerts_*.md
+          git add data/fetch_runs.csv data/job_listings.csv reports/job_tracker.csv reports/alerts_*.md outputs/applications
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0

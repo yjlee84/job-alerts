@@ -1,0 +1,125 @@
+{
+  "candidate_name": "Jay Lee",
+  "contact": {
+    "location": "31 Blvd Jourdan, Paris, France",
+    "phone": "+33 76-232 6833",
+    "email": "iyongjae6@gmail.com"
+  },
+  "target_roles": [
+    "Policy Analyst",
+    "Economist",
+    "Research Analyst",
+    "Data Analyst"
+  ],
+  "summary": "Data-focused economics researcher with experience in policy analysis, statistical analysis, international datasets, and applied research.",
+  "skills": [
+    "Data analysis",
+    "Econometrics",
+    "Statistical modeling",
+    "Research",
+    "Data visualization",
+    "Database management",
+    "Project management",
+    "Policy analysis"
+  ],
+  "tools": [
+    "Python",
+    "R",
+    "SQL",
+    "Excel",
+    "Stata",
+    "Tableau",
+    "MATLAB",
+    "Jupyter Notebook",
+    "LaTeX",
+    "Git"
+  ],
+  "education": [
+    {
+      "institution": "Paris School of Economics",
+      "degree": "MRes in Analysis and Policy in Economics",
+      "location": "Paris, France",
+      "end_year": "",
+      "status": "Current"
+    },
+    {
+      "institution": "University of Toronto",
+      "degree": "MA in Economics",
+      "location": "Toronto, Canada",
+      "end_year": "2020",
+      "status": "Completed"
+    },
+    {
+      "institution": "Queen's University",
+      "degree": "BSc in Economics, Minor in Math",
+      "location": "Kingston, Canada",
+      "end_year": "2019",
+      "status": "Completed"
+    }
+  ],
+  "experience": [
+    {
+      "employer": "OECD",
+      "title": "Intern Analyst",
+      "location": "Paris, France",
+      "dates": "2025",
+      "bullets": [
+        "Contributed to the management of the Health Care Quality and Outcomes database by validating and harmonizing large international datasets.",
+        "Analyzed healthcare indicators and statistical trends across OECD member states using econometric and statistical techniques.",
+        "Assisted in drafting OECD health reports and translating complex data into clear narratives and visualizations."
+      ]
+    },
+    {
+      "employer": "Institute for International Economic Studies",
+      "title": "Research Assistant",
+      "location": "Stockholm, Sweden",
+      "dates": "2023-2024",
+      "bullets": [
+        "Analyzed data from 150,000 Swedish firms using advanced statistical methods for research projects.",
+        "Performed large-scale data collection and cleaning to improve accuracy, completeness, and consistency.",
+        "Developed solutions for data management and statistical analysis issues."
+      ]
+    },
+    {
+      "employer": "University of Toronto",
+      "title": "Teaching Assistant",
+      "location": "Toronto, Canada",
+      "dates": "2019-2020",
+      "bullets": [
+        "Prepared assignments and class activities with professors while following academic regulations.",
+        "Supervised 300 students during exam proctoring and held office hours for assignment support.",
+        "Evaluated assignments, exams, and term papers and tracked student progress."
+      ]
+    },
+    {
+      "employer": "Queen's University",
+      "title": "Research Assistant",
+      "location": "Kingston, Canada",
+      "dates": "2019",
+      "bullets": [
+        "Built databases on Canadian politics, the economy, and education.",
+        "Used Python and web scraping to collect data from online sources.",
+        "Improved dataset quality through kurtosis analysis and descriptive statistical checks."
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "proficiency": "Fluent"
+    },
+    {
+      "language": "Korean",
+      "proficiency": "Fluent"
+    },
+    {
+      "language": "French",
+      "proficiency": "Beginner"
+    }
+  ],
+  "constraints": [
+    "Do not invent experience, metrics, degrees, dates, employers, or tools not already supported by the source resume.",
+    "Tailoring should prioritize reordering, emphasis, and phrasing changes over creating new claims.",
+    "Resume output should remain concise and ATS-friendly."
+  ]
+}

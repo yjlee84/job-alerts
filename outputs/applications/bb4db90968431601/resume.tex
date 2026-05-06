@@ -1,0 +1,165 @@
+%-----------------------------------------------------------------------------------------------------------------------------------------------%
+%   The MIT License (MIT)
+%
+%   Copyright (c) 2021 Jitin Nair
+%
+%   Permission is hereby granted, free of charge, to any person obtaining a copy
+%   of this software and associated documentation files (the "Software"), to deal
+%   in the Software without restriction, including without limitation the rights
+%   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+%   copies of the Software, and to permit persons to whom the Software
+%   furnished to do so, subject to the following conditions:
+%   
+%   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+%   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+%   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+%   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+%   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+%   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+%   THE SOFTWARE.
+%   
+%
+%-----------------------------------------------------------------------------------------------------------------------------------------------%
+
+%----------------------------------------------------------------------------------------
+%   DOCUMENT DEFINITION
+%----------------------------------------------------------------------------------------
+
+\documentclass[a4paper,12pt]{article}
+
+%----------------------------------------------------------------------------------------
+%   FONT
+%----------------------------------------------------------------------------------------
+
+%----------------------------------------------------------------------------------------
+%   PACKAGES
+%----------------------------------------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{parskip}    
+
+%other packages for formatting
+\RequirePackage{color}
+\RequirePackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[scale=0.9]{geometry}
+
+%tabularx environment
+\usepackage{tabularx}
+
+%for lists within experience section
+\usepackage{enumitem}
+
+% centered version of 'X' col. type
+\newcolumntype{C}{>{\centering\arraybackslash}X} 
+
+%to prevent spillover of tabular into next pages
+\usepackage{supertabular}
+\newlength{\fullcollw}
+\setlength{\fullcollw}{0.47\textwidth}
+
+%custom \section
+\usepackage{titlesec}               
+\usepackage{multicol}
+\usepackage{multirow}
+
+\titleformat{\section}{\Large\scshape\raggedright}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{10pt}
+
+%for publications
+\usepackage[style=authoryear,sorting=ynt, maxbibnames=2]{biblatex}
+
+%Setup hyperref package, and colours for links
+\usepackage[unicode, draft=false]{hyperref}
+\definecolor{linkcolour}{rgb}{0,0.2,0.6}
+\hypersetup{colorlinks,breaklinks,urlcolor=linkcolour,linkcolor=linkcolour}
+\addbibresource{citations.bib}
+\setlength\bibitemsep{1em}
+
+%for social icons
+\usepackage{fontawesome5}
+
+\newenvironment{jobshort}[3]
+    {
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{#1} & \hfill & #3 \\
+    \multicolumn{3}{@{}l@{}}{\textit{#2}} \\[2.75pt]
+    \end{tabularx}
+    }
+    {
+    }
+
+\newenvironment{joblong}[3]
+    {
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{#1} & \hfill & #3 \\
+    \multicolumn{3}{@{}l@{}}{\textit{#2}} \\[-4.25pt]
+    \end{tabularx}
+    \begin{itemize}[nosep,leftmargin=1em,itemsep=2pt,label={\raisebox{0.25ex}{\tiny$\bullet$}},topsep=0pt,partopsep=0pt]
+    }
+    {
+    \end{itemize}
+    }
+
+%----------------------------------------------------------------------------------------
+%   BEGIN DOCUMENT
+%----------------------------------------------------------------------------------------
+\begin{document}
+
+\pagestyle{empty} 
+
+%----------------------------------------------------------------------------------------
+%   TITLE
+%----------------------------------------------------------------------------------------
+
+\begin{tabularx}{\linewidth}{@{} C @{}}
+\Huge{Jay Lee} \\[6pt]
+\href{https://github.com/yjlee84}{\raisebox{-0.05\height}\faGithub\ yjlee84} \ $|$ \ 
+\href{https://yongjailee.netlify.app}{\raisebox{-0.05\height}\faGlobe \ yongjailee.netlify.app} \ $|$ \ 
+\href{mailto:email@mysite.com}{\raisebox{-0.05\height}\faEnvelope \ iyongjae6@gmail.com} \ $|$ \ 
+\href{tel:+000000000000}{\raisebox{-0.05\height}\faMobile \ +33 7 62 32 68 33} \\
+\end{tabularx}
+
+%----------------------------------------------------------------------------------------
+% EXPERIENCE SECTIONS
+%----------------------------------------------------------------------------------------
+
+\section{Summary}
+Data-focused economics researcher with OECD experience, strong statistical and econometric skills, and a background in policy-relevant research, database management, and report support. Fluent in English with working knowledge of French.
+
+\textbf{Core Competencies}: Policy Analysis | Data Analysis | Econometrics | Statistical Modeling | Research | Database Management | Project Coordination | Stakeholder Communication\\
+\textbf{Technical Acumen}: Excel | Python | R | SQL | Stata | Tableau | MATLAB | Jupyter Notebook | \LaTeX{} | Git
+
+\section{Experience}
+
+\begin{joblong}{OECD}{Intern Analyst}{2025}
+\item Contributed to the management of the Health Care Quality and Outcomes database by validating and harmonizing large international datasets.
+\item Analyzed healthcare indicators and statistical trends across OECD member states using econometric and statistical techniques.
+\item Assisted in drafting OECD health reports and translating complex data into clear narratives and visualizations.
+\end{joblong}
+
+\begin{jobshort}{Institute for International Economic Studies}{Research Assistant}{2023 -- 2024}
+Analyzed data from 150,000 Swedish firms using advanced statistical methods, performed large-scale data collection and cleaning, and developed solutions for data management and statistical analysis issues.
+\end{jobshort}
+
+\begin{jobshort}{University of Toronto}{Teaching Assistant}{2019 -- 2020}
+Prepared assignments and class activities with professors, supervised 300 students during exam proctoring, held office hours for assignment support, and tracked student progress.
+\end{jobshort}
+
+\begin{jobshort}{Queen's University}{Research Assistant}{2019}
+Built databases on Canadian politics, the economy, and education, used Python and web scraping to collect data from online sources, and improved dataset quality through descriptive statistical checks.
+\end{jobshort}
+
+\section{Education}
+\begin{tabularx}{\linewidth}{@{}l X@{}} 
+MRes in Analysis \& Policy in Economics & \textbf{Paris School of Economics} \hfill Current \\
+MA in Economics & \textbf{University of Toronto} \hfill 2020 \\
+BSc in Economics, Minor in Math & \textbf{Queen's University} \hfill 2019 \\
+\end{tabularx}
+
+\section{Languages}
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+English (Fluent), Korean (Fluent), French (Beginner)
+\end{tabularx}
+
+\end{document}

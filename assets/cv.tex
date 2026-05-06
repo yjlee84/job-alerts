@@ -1,0 +1,227 @@
+%-----------------------------------------------------------------------------------------------------------------------------------------------%
+%   The MIT License (MIT)
+%
+%   Copyright (c) 2021 Jitin Nair
+%
+%   Permission is hereby granted, free of charge, to any person obtaining a copy
+%   of this software and associated documentation files (the "Software"), to deal
+%   in the Software without restriction, including without limitation the rights
+%   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+%   copies of the Software, and to permit persons to whom the Software is
+%   furnished to do so, subject to the following conditions:
+%   
+%   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+%   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+%   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+%   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+%   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+%   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+%   THE SOFTWARE.
+%   
+%
+%-----------------------------------------------------------------------------------------------------------------------------------------------%
+
+%----------------------------------------------------------------------------------------
+%   DOCUMENT DEFINITION
+%----------------------------------------------------------------------------------------
+
+% article class because we want to fully customize the page and not use a cv template
+\documentclass[a4paper,12pt]{article}
+
+%----------------------------------------------------------------------------------------
+%   FONT
+%----------------------------------------------------------------------------------------
+
+% % fontspec allows you to use TTF/OTF fonts directly
+% \usepackage{fontspec}
+% \defaultfontfeatures{Ligatures=TeX}
+
+% % modified for ShareLaTeX use
+% \setmainfont[
+% SmallCapsFont = Fontin-SmallCaps.otf,
+% BoldFont = Fontin-Bold.otf,
+% ItalicFont = Fontin-Italic.otf
+% ]
+% {Fontin.otf}
+
+%----------------------------------------------------------------------------------------
+%   PACKAGES
+%----------------------------------------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{parskip}    
+
+%other packages for formatting
+\RequirePackage{color}
+\RequirePackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[scale=0.9]{geometry}
+
+%tabularx environment
+\usepackage{tabularx}
+
+%for lists within experience section
+\usepackage{enumitem}
+
+% centered version of 'X' col. type
+\newcolumntype{C}{>{\centering\arraybackslash}X} 
+
+%to prevent spillover of tabular into next pages
+\usepackage{supertabular}
+\newlength{\fullcollw}
+\setlength{\fullcollw}{0.47\textwidth}
+
+%custom \section
+\usepackage{titlesec}               
+\usepackage{multicol}
+\usepackage{multirow}
+
+%CV Sections inspired by: 
+%http://stefano.italians.nl/archives/26
+\titleformat{\section}{\Large\scshape\raggedright}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{10pt}
+
+%for publications
+\usepackage[style=authoryear,sorting=ynt, maxbibnames=2]{biblatex}
+
+%Setup hyperref package, and colours for links
+\usepackage[unicode, draft=false]{hyperref}
+\definecolor{linkcolour}{rgb}{0,0.2,0.6}
+\hypersetup{colorlinks,breaklinks,urlcolor=linkcolour,linkcolor=linkcolour}
+\addbibresource{citations.bib}
+\setlength\bibitemsep{1em}
+
+%for social icons
+\usepackage{fontawesome5}
+
+%debug page outer frames
+%\usepackage{showframe}
+
+
+% job listing environments
+\newenvironment{jobshort}[3]
+    {
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{#1} & \hfill & #3 \\
+    \multicolumn{3}{@{}l@{}}{\textit{#2}} \\[2.75pt]
+    \end{tabularx}
+    }
+    {
+    }
+
+\newenvironment{joblong}[3]
+    {
+    \begin{tabularx}{\linewidth}{@{}l X r@{}}
+    \textbf{#1} & \hfill & #3 \\
+    \multicolumn{3}{@{}l@{}}{\textit{#2}} \\[-4.25pt]
+    \end{tabularx}
+    \begin{itemize}[nosep,leftmargin=1em,itemsep=3pt,label={\raisebox{0.25ex}{\tiny$\bullet$}},topsep=0pt,partopsep=0pt]
+    }
+    {
+    \end{itemize}
+    }
+
+
+
+%----------------------------------------------------------------------------------------
+%   BEGIN DOCUMENT
+%----------------------------------------------------------------------------------------
+\begin{document}
+
+% non-numbered pages
+\pagestyle{empty} 
+
+%----------------------------------------------------------------------------------------
+%   TITLE
+%----------------------------------------------------------------------------------------
+
+% \begin{tabularx}{\linewidth}{ @{}X X@{} }
+% \huge{Your Name}\vspace{2pt} & \hfill \emoji{incoming-envelope} email@email.com \\
+% \raisebox{-0.05\height}\faGithub\ username \ | \
+% \raisebox{-0.00\height}\faLinkedin\ username \ | \ \raisebox{-0.05\height}\faGlobe \ mysite.com  & \hfill \emoji{calling} number
+% \end{tabularx}
+
+\begin{tabularx}{\linewidth}{@{} C @{}}
+\Huge{Jay Lee} \\[7.5pt]
+\href{https://github.com/yjlee84}{\raisebox{-0.05\height}\faGithub\ yjlee84} \ $|$ \ 
+% \href{https://linkedin.com/in/username}{\raisebox{-0.05\height}\faLinkedin\ } \ $|$ \ 
+\href{https://yongjailee.netlify.app}{\raisebox{-0.05\height}\faGlobe \ yongjailee.netlify.app} \ $|$ \ 
+\href{mailto:email@mysite.com}{\raisebox{-0.05\height}\faEnvelope \ iyongjae6@gmail.com} \ $|$ \ 
+\href{tel:+000000000000}{\raisebox{-0.05\height}\faMobile \ +33 7 62 32 68 33} \\
+\end{tabularx}
+
+%----------------------------------------------------------------------------------------
+% EXPERIENCE SECTIONS
+%----------------------------------------------------------------------------------------
+
+%Interests/ Keywords/ Summary
+\section{Summary}
+% BEGIN GPT:SUMMARY
+Economist and data analyst with strong statistical expertise and end-to-end project execution experience, translating complex data into actionable insights through rigorous research, clear analysis, and effective collaboration across multidisciplinary teams.
+% END GPT:SUMMARY
+
+% BEGIN GPT:CORE_COMPETENCIES
+\textbf{Core Competencies}: Data Analysis | Econometrics | Statistical Modeling | Research \& Policy Analysis | Data Management | Project Execution | Data Visualization | Stakeholder Communication\\
+% END GPT:CORE_COMPETENCIES
+% BEGIN GPT:TECHNICAL_ACUMEN
+\textbf{Technical Acumen}: Python | R | Git | SQL | Excel | Stata | Tableau | \LaTeX{}
+% END GPT:TECHNICAL_ACUMEN
+
+%Experience
+\section{Experience}
+
+\begin{joblong}{OECD}{Consultant}{2025 – 2026} % chktex 8
+% BEGIN GPT:OECD_BULLETS
+\item Modernized the Health Care Quality and Outcomes data collection by automating validations and calculations for delegate submissions, improving efficiency and cross-country comparability
+\item Analyzed healthcare indicators across OECD member states using econometric and statistical methods to assess disparities, strengthening the evidence base for policy discussions
+\item Supported OECD health reports by translating complex analyses into clear narratives and visualizations for policymakers and other stakeholders
+% END GPT:OECD_BULLETS
+\end{joblong}
+
+\begin{jobshort}{Institute for International Economic Studies}{Data Analyst}{2023 – 2024}
+% BEGIN GPT:IIES_BODY
+Analyzed data on 15,000 Swedish firms using advanced statistical methods, data cleaning, and data management techniques to strengthen research quality, improve dataset reliability, and generate robust insights for economic projects.
+% END GPT:IIES_BODY
+\end{jobshort}
+
+\begin{jobshort}{University of Toronto}{Teaching Assistant}{2019 – 2020} % chktex 8
+% BEGIN GPT:UTORONTO_BODY
+Supported delivery of economics courses for 300 students by coordinating coursework, proctoring exams, leading office hours, and grading assignments, helping uphold academic standards and foster an effective learning environment.
+% END GPT:UTORONTO_BODY
+\end{jobshort}
+
+\begin{jobshort}{Queen’s University}{Research Assistant}{2019}
+% BEGIN GPT:QUEENS_BODY
+Built and validated research databases on Canadian politics, economics, and education, conducted survey outreach to 2,000 politicians, and used web scraping and descriptive statistical analysis to improve data completeness and support policy-oriented research.
+% END GPT:QUEENS_BODY
+\end{jobshort}
+
+
+
+%----------------------------------------------------------------------------------------
+%   EDUCATION
+%----------------------------------------------------------------------------------------
+\section{Education}
+\begin{tabularx}{\linewidth}{@{}l X@{}} 
+MRes in Analysis \& Policy in Economics & \textbf{Paris School of Economics} \hfill 2026 \\
+
+MA in Economics & \textbf{University of Toronto} \hfill 2020 \\ 
+
+BSc in Economics, Minor in Math & \textbf{Queen's University} \hfill 2019 \\
+\end{tabularx}
+
+%----------------------------------------------------------------------------------------
+%   SKILLS
+%----------------------------------------------------------------------------------------
+\section{Languages}
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\normalsize{English, Korean, French (Beginner)}\\
+
+\end{tabularx}
+
+\vfill
+\center{\footnotesize Last updated: \today}
+
+\end{document}
+
+# Tips: Projects: HCQO, Publication section

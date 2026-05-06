@@ -13,6 +13,10 @@ This is a `v1` local pipeline for collecting job postings from target career pag
 - `scripts/filter_jobs.py`: rewrite `data/job_listings.csv` to only the currently matched candidate jobs
 - `scripts/build_alert_report.py`: build the daily Markdown alert report
 - `scripts/sync_job_tracker.py`: append only matched new jobs into `reports/job_tracker.csv`
+- `scripts/build_review_resumes.py`: generate tailored `.tex` and `.pdf` resume / cover-letter files for every tracker row whose `Status` is `Review`
+- `assets/`: source resume assets used for resume compilation and application prep
+- `outputs/applications/`: per-job generated application materials
+- `scripts/prepare_application.py`: generate tailored resume and cover letter drafts for a tracked job
 
 ## Source Format
 
@@ -37,8 +41,44 @@ oecd,OECD,https://example.com/careers,links,1
 python3 scripts/fetch_jobs.py
 python3 scripts/filter_jobs.py
 python3 scripts/sync_job_tracker.py
+python3 scripts/build_review_resumes.py
 python3 scripts/build_alert_report.py
 ```
+
+## Application Prep
+
+The GPT-backed application prep workflow uses the existing `description` column in `data/job_listings.csv` instead of separate job-description files. GPT sees the full `.tex` files, but is only allowed to rewrite named `GPT` blocks inside those templates.
+
+Source files:
+
+- `assets/cv.tex`: base resume source used to build the application resume PDF
+- `assets/citations.bib`: LaTeX bibliography source used during resume compilation
+- `assets/letter.tex`: base cover letter source used to build the application cover letter PDF
+- `config/resume_profile.json`: structured facts that the model is allowed to use
+
+Generated files:
+
+- `outputs/applications/<job_id>/resume.tex`
+- `outputs/applications/<job_id>/resume.pdf`
+- `outputs/applications/<job_id>/cover_letter.tex`
+- `outputs/applications/<job_id>/cover_letter.pdf`
+
+Usage:
+
+```bash
+cp .env.example .env
+# edit .env and set OPENAI_API_KEY
+python3 scripts/prepare_application.py --job-id <job_id>
+```
+
+Notes:
+
+- The script reads the matching job description from `data/job_listings.csv`.
+- It does not store generated document metadata in `reports/job_tracker.csv`.
+- GPT receives the full LaTeX templates but may only rewrite named `GPT` blocks inside them.
+- Tailored resume and cover-letter outputs must compile successfully and stay within a one-page PDF limit.
+- The analysis and tailoring steps remain constrained by `assets/cv.tex`, `assets/letter.tex`, and `config/resume_profile.json`.
+- `.env` is project-local and ignored by git.
 
 ## Filter Format
 
@@ -95,6 +135,18 @@ The tracker sync:
 4. appends only unseen jobs
 5. uses default values `Status = Review` and `Next Action = Apply`
 
+The review materials builder:
+
+1. reads `reports/job_tracker.csv`
+2. selects rows whose `Status` is `Review`
+3. reads the matching job description from `data/job_listings.csv`
+4. asks GPT for JSON block replacements against the `GPT` regions in `assets/cv.tex`
+5. renders `outputs/applications/<job_id>/resume.tex`
+6. compiles `outputs/applications/<job_id>/resume.pdf` and rejects outputs over one page
+7. asks GPT for JSON block replacements against the `GPT` regions in `assets/letter.tex`
+8. renders `outputs/applications/<job_id>/cover_letter.tex`
+9. compiles `outputs/applications/<job_id>/cover_letter.pdf` and rejects outputs over one page
+
 The filter step:
 
 1. reads `config/filters.csv`
@@ -107,8 +159,9 @@ The intended daily workflow:
 1. run `fetch_jobs.py` once per day
 2. run `filter_jobs.py` to turn `job_listings.csv` into the filtered candidate list
 3. run `sync_job_tracker.py` to append only unseen candidate jobs into the tracker
-4. run `build_alert_report.py`
-5. the report shows:
+4. run `build_review_resumes.py` to create `resume.pdf` and `cover_letter.pdf` for every `Review` row
+5. run `build_alert_report.py`
+6. the report shows:
    `New Jobs`: jobs added to the tracker today
    `Review Jobs`: jobs currently marked `Review` in `job_tracker.csv`
 

@@ -22,3 +22,8 @@ run_at,source_id,company,careers_url,status,http_status,jobs_found,message
 2026-05-02T12:01:52+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,ok,200,22,
 2026-05-02T12:10:46+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,ok,200,22,
 2026-05-02T12:19:04+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,ok,200,22,
+2026-05-06T12:20:36+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,url_error,,0,"[Errno 8] nodename nor servname provided, or not known"
+2026-05-06T13:58:40+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,url_error,,0,"[Errno 8] nodename nor servname provided, or not known"
+2026-05-06T14:11:08+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,url_error,,0,"[Errno 8] nodename nor servname provided, or not known"
+2026-05-06T14:29:47+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,url_error,,0,"[Errno 8] nodename nor servname provided, or not known"
+2026-05-06T14:30:32+00:00,oecd_smartrecruiters,OECD,https://careers.smartrecruiters.com/OECD/oecd---en,url_error,,0,"[Errno 8] nodename nor servname provided, or not known"
