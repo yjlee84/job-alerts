@@ -23,6 +23,7 @@ TRACKER_FIELDS = [
     "Job ID",
 ]
 
+
 def _ensure_tracker(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
@@ -57,11 +58,13 @@ def _today_utc() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
-def sync_tracker() -> tuple[Path, int]:
+def sync_tracker() -> tuple[Path, int, int]:
     _ensure_tracker(JOB_TRACKER_PATH)
     today = _today_utc()
     listings = _read_csv(JOB_LISTINGS_PATH)
     tracker_rows = _migrate_tracker_schema(_read_csv(JOB_TRACKER_PATH))
+    live_job_ids = {row.get("job_id", "").strip() for row in listings if row.get("job_id", "").strip()}
+    live_websites = {row.get("job_url", "").strip() for row in listings if row.get("job_url", "").strip()}
     listings_by_website = {
         row.get("job_url", "").strip(): row
         for row in listings
@@ -71,13 +74,26 @@ def sync_tracker() -> tuple[Path, int]:
     for tracker_row in tracker_rows:
         if not tracker_row.get("Date Added", "").strip():
             tracker_row["Date Added"] = today
-        if tracker_row.get("Job ID", "").strip():
+        if not tracker_row.get("Job ID", "").strip():
+            website = tracker_row.get("Website", "").strip()
+            listing = listings_by_website.get(website)
+            if listing:
+                tracker_row["Job ID"] = listing.get("job_id", "").strip()
+    kept_tracker_rows: list[dict[str, str]] = []
+    removed_count = 0
+    for tracker_row in tracker_rows:
+        if tracker_row.get("Status", "").strip() != "Review":
+            kept_tracker_rows.append(tracker_row)
             continue
+        job_id = tracker_row.get("Job ID", "").strip()
         website = tracker_row.get("Website", "").strip()
-        listing = listings_by_website.get(website)
-        if listing:
-            tracker_row["Job ID"] = listing.get("job_id", "").strip()
+        matches_live_listing = (job_id and job_id in live_job_ids) or (website and website in live_websites)
+        if matches_live_listing:
+            kept_tracker_rows.append(tracker_row)
+        else:
+            removed_count += 1
 
+    tracker_rows = kept_tracker_rows
     existing_job_ids = {row.get("Job ID", "").strip() for row in tracker_rows if row.get("Job ID", "").strip()}
     existing_websites = {row.get("Website", "").strip() for row in tracker_rows if row.get("Website", "").strip()}
 
@@ -111,13 +127,14 @@ def sync_tracker() -> tuple[Path, int]:
     else:
         _write_csv(JOB_TRACKER_PATH, TRACKER_FIELDS, tracker_rows)
 
-    return JOB_TRACKER_PATH, len(new_rows)
+    return JOB_TRACKER_PATH, len(new_rows), removed_count
 
 
 def main() -> None:
-    output_path, added_count = sync_tracker()
+    output_path, added_count, removed_count = sync_tracker()
     print(f"Tracker synced: {output_path}")
     print(f"Rows added: {added_count}")
+    print(f"Review rows removed: {removed_count}")
 
 
 if __name__ == "__main__":

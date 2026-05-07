@@ -20,11 +20,10 @@ DATA_DIR = BASE_DIR / "data"
 REPORTS_DIR = BASE_DIR / "reports"
 ASSETS_DIR = BASE_DIR / "assets"
 CONFIG_DIR = BASE_DIR / "config"
-OUTPUTS_DIR = BASE_DIR / "outputs" / "applications"
+OUTPUTS_DIR = BASE_DIR / "outputs"
 
 JOB_LISTINGS_PATH = DATA_DIR / "job_listings.csv"
 JOB_TRACKER_PATH = REPORTS_DIR / "job_tracker.csv"
-RESUME_PROFILE_PATH = CONFIG_DIR / "resume_profile.json"
 RESUME_TEX_PATH = ASSETS_DIR / "cv.tex"
 RESUME_BIB_PATH = ASSETS_DIR / "citations.bib"
 COVER_LETTER_TEX_PATH = ASSETS_DIR / "letter.tex"
@@ -48,6 +47,15 @@ GPT_BLOCK_PATTERN = re.compile(
     r"(?ms)^% BEGIN GPT:(?P<name>[A-Z0-9_]+)\n(?P<content>.*?)^% END GPT:(?P=name)\s*$"
 )
 MAX_DOC_PAGES = 1
+DEFAULT_PRIORITY_KEYWORD_COUNT = 8
+RESUME_EDITABLE_BLOCKS = {
+    "SUMMARY",
+    "CORE_COMPETENCIES",
+    "TECHNICAL_ACUMEN",
+}
+COVER_LETTER_STYLE_SENSITIVE_BLOCKS = {
+    "CLOSING_PARAGRAPHS",
+}
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -70,11 +78,6 @@ def _slugify(value: str) -> str:
 def _job_output_dir(job_id: str, position: str) -> Path:
     job_token = job_id.strip() or _slugify(position)[:40]
     return OUTPUTS_DIR / job_token
-
-
-def _load_json(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as json_file:
-        return json.load(json_file)
 
 
 def _load_dotenv(path: Path) -> None:
@@ -190,21 +193,27 @@ def _responses_api_call(api_key: str, model: str, instructions: str, payload: di
 
 def _analysis_instructions() -> str:
     return (
-        "You are preparing job application materials. "
+        "You are preparing ATS-safe job application materials. "
         "Return only valid JSON. "
-        "Use only facts in the candidate profile and supplied resume source. "
+        "Use only facts in the supplied resume source. "
         "Do not invent employers, dates, tools, metrics, or achievements. "
-        "Analyze the job description and map it to the candidate profile. "
+        "Analyze the job description and map it to the supplied resume source. "
+        f"Select exactly the top {DEFAULT_PRIORITY_KEYWORD_COUNT} high-priority ATS keywords for the resume. "
+        "Prioritize core role terms, repeated skills/methods, important tools, and central responsibility phrases. "
+        "Exclude low-value admin jargon, one-off internal phrases, and overly specific terms unless they are central to the role. "
+        "Separate the selected keywords into supported keywords that can be defended from the supplied resume "
+        "versus unsupported keywords that should not be added. "
         "The JSON object must contain these keys: "
         "target_role, seniority, must_have_skills, preferred_skills, ats_keywords, "
-        "key_responsibilities, fit_strengths, fit_gaps, resume_focus, cover_letter_focus, summary."
+        "priority_keywords, supported_ats_keywords, unsupported_ats_keywords, key_responsibilities, fit_strengths, "
+        "fit_gaps, resume_focus, cover_letter_focus, summary."
     )
 
 
 def _tailored_cover_letter_analysis_instructions() -> str:
     return (
         "Draft a concise tailored cover letter in Markdown. "
-        "Use only facts present in the supplied resume source and candidate profile. "
+        "Use only facts present in the supplied resume source. "
         "Do not invent experience or claims. "
         "The letter should explain fit for the role and mirror relevant job-description language naturally."
     )
@@ -261,42 +270,6 @@ code {
 """
 
 
-def _write_pdf_from_markdown(markdown_text: str, pdf_path: Path) -> None:
-    clean_markdown = _strip_markdown_fence(markdown_text).rstrip() + "\n"
-    with tempfile.TemporaryDirectory() as tmpdir_name:
-        tmpdir = Path(tmpdir_name)
-        markdown_path = tmpdir / "document.md"
-        html_path = tmpdir / "document.html"
-        css_path = tmpdir / "style.css"
-        markdown_path.write_text(clean_markdown, encoding="utf-8")
-        css_path.write_text(_pdf_css(), encoding="utf-8")
-
-        subprocess.run(
-            [
-                "pandoc",
-                str(markdown_path),
-                "--standalone",
-                "--css",
-                str(css_path),
-                "--metadata",
-                "title=document",
-                "-o",
-                str(html_path),
-            ],
-            check=True,
-        )
-        subprocess.run(
-            [
-                "wkhtmltopdf",
-                "--quiet",
-                "--enable-local-file-access",
-                str(html_path),
-                str(pdf_path),
-            ],
-            check=True,
-        )
-
-
 def _copy_if_exists(source: Path, destination: Path) -> None:
     if source.exists():
         destination.write_bytes(source.read_bytes())
@@ -311,6 +284,15 @@ def _extract_gpt_blocks(tex_source: str) -> dict[str, str]:
     return blocks
 
 
+def _select_editable_blocks(document_type: str, blocks: dict[str, str]) -> dict[str, str]:
+    if document_type == "resume":
+        selected = {name: content for name, content in blocks.items() if name in RESUME_EDITABLE_BLOCKS}
+        if not selected:
+            raise RuntimeError("No ATS-safe editable resume blocks were found in the LaTeX source")
+        return selected
+    return blocks
+
+
 def _replace_gpt_blocks(tex_source: str, replacements: dict[str, str]) -> str:
     seen: set[str] = set()
 
@@ -319,7 +301,11 @@ def _replace_gpt_blocks(tex_source: str, replacements: dict[str, str]) -> str:
         seen.add(name)
         original_content = match.group("content")
         new_content = replacements.get(name, original_content.strip("\n"))
-        return f"% BEGIN GPT:{name}\n{new_content.rstrip()}\n% END GPT:{name}"
+        trailing_newlines = ""
+        suffix = match.group(0).split(f"% END GPT:{name}", 1)[1]
+        if suffix:
+            trailing_newlines = suffix
+        return f"% BEGIN GPT:{name}\n{new_content.rstrip()}\n% END GPT:{name}{trailing_newlines}"
 
     updated = GPT_BLOCK_PATTERN.sub(repl, tex_source)
     missing = set(replacements) - seen
@@ -330,6 +316,14 @@ def _replace_gpt_blocks(tex_source: str, replacements: dict[str, str]) -> str:
 
 def _count_latex_items(text: str) -> int:
     return len(re.findall(r"(?m)^\s*\\item\b", text))
+
+
+def _count_paragraph_breaks(text: str) -> int:
+    return len(re.findall(r"\n\s*\n", text.strip()))
+
+
+def _count_vspace_commands(text: str) -> int:
+    return len(re.findall(r"\\vspace\{[^}]+\}", text))
 
 
 def _validate_gpt_replacements(original_blocks: dict[str, str], replacements: dict[str, Any]) -> dict[str, str]:
@@ -354,6 +348,17 @@ def _validate_gpt_replacements(original_blocks: dict[str, str], replacements: di
                 f"Replacement for block {name} changed the number of \\item entries "
                 f"from {_count_latex_items(original)} to {_count_latex_items(replacement)}"
             )
+        if name in COVER_LETTER_STYLE_SENSITIVE_BLOCKS:
+            if _count_paragraph_breaks(original) != _count_paragraph_breaks(replacement):
+                raise RuntimeError(
+                    f"Replacement for block {name} changed paragraph breaks "
+                    f"from {_count_paragraph_breaks(original)} to {_count_paragraph_breaks(replacement)}"
+                )
+            if _count_vspace_commands(original) != _count_vspace_commands(replacement):
+                raise RuntimeError(
+                    f"Replacement for block {name} changed \\vspace commands "
+                    f"from {_count_vspace_commands(original)} to {_count_vspace_commands(replacement)}"
+                )
         normalized[name] = replacement.strip()
     return normalized
 
@@ -426,34 +431,44 @@ def _compile_tex_content(
         return page_count
 
 
-def _build_tex_pdf(source_tex_path: Path, pdf_path: Path, *, output_stem: str) -> None:
-    if not source_tex_path.exists():
-        raise SystemExit(f"Missing LaTeX source: {source_tex_path}")
-    _compile_tex_content(source_tex_path.read_text(encoding="utf-8"), pdf_path, output_stem=output_stem)
-
-
-def _build_base_resume_pdf(pdf_path: Path) -> None:
-    _build_tex_pdf(RESUME_TEX_PATH, pdf_path, output_stem="cv")
-
-
-def _build_base_cover_letter_pdf(pdf_path: Path) -> None:
-    _build_tex_pdf(COVER_LETTER_TEX_PATH, pdf_path, output_stem="letter")
-
-
 def _tex_tailoring_instructions(*, document_type: str, max_pages: int) -> str:
-    return (
+    base = (
         f"You are tailoring a {document_type} written in LaTeX. "
         "Return only valid JSON. "
         "You will receive the full LaTeX file plus the current contents of the GPT-editable blocks. "
         "Only edit the provided GPT blocks. Do not rewrite any other part of the LaTeX file. "
         "Do not include GPT markers, code fences, commentary, or extra keys. "
-        "Use only facts already present in the supplied LaTeX source and candidate profile. "
+        "Use only facts already present in the supplied LaTeX source. "
         "Do not invent employers, titles, dates, metrics, tools, publications, locations, or achievements. "
         f"Keep the final document to at most {max_pages} page(s). "
         "Tighten wording instead of adding volume. Preserve the number of bullet items in any block that already contains \\item lines. "
         "Preserve valid LaTeX syntax. "
         "Return a JSON object with exactly these keys: the GPT block names you were given."
     )
+    if document_type == "resume":
+        return (
+            base
+            + " This is an ATS keyword-alignment task, not a resume rewrite. "
+            "Do not change employers, titles, dates, education, or experience bullets. "
+            "Prefer minimal edits in the summary, core competencies, and technical acumen blocks only. "
+            f"Try to include at least 6 of the {DEFAULT_PRIORITY_KEYWORD_COUNT} selected priority keywords when they are supported and fit naturally. "
+            "If a supported keyword cannot be added cleanly in those blocks, leave it out rather than forcing awkward phrasing. "
+            "Do not change formatting style, paragraph structure, or list style. "
+            "Keep each editable block in the same presentation style it already uses. "
+            "For example: keep SUMMARY as a plain paragraph, CORE_COMPETENCIES as a labeled competency line, "
+            "and TECHNICAL_ACUMEN as a labeled tools line. "
+            "Use job-description language naturally and only when supported by the supplied resume. "
+            "Do not keyword-stuff. Preserve the candidate's existing voice and factual scope."
+        )
+    if document_type == "cover letter":
+        return (
+            base
+            + " Preserve the existing cover-letter layout and paragraph structure exactly. "
+            "Do not merge separate paragraphs into one paragraph. "
+            "If a block already contains blank lines or \\vspace commands, keep them in the same places. "
+            "Keep the tone natural and professional rather than optimized for ATS."
+        )
+    return base
 
 
 def _run_tex_block_tailor(
@@ -465,16 +480,14 @@ def _run_tex_block_tailor(
     analysis: dict[str, Any],
     listing: dict[str, str],
     tracker_row: dict[str, str],
-    resume_profile: dict[str, Any],
     max_pages: int,
     feedback: str = "",
 ) -> dict[str, str]:
-    current_blocks = _extract_gpt_blocks(template_source)
+    current_blocks = _select_editable_blocks(document_type, _extract_gpt_blocks(template_source))
     prompt_payload: dict[str, Any] = {
         "job": listing,
         "tracker_row": tracker_row,
         "analysis": analysis,
-        "resume_profile": resume_profile,
         "document_type": document_type,
         "max_pages": max_pages,
         "full_latex_source": template_source,
@@ -504,7 +517,6 @@ def _build_tailored_tex_document(
     analysis: dict[str, Any],
     listing: dict[str, str],
     tracker_row: dict[str, str],
-    resume_profile: dict[str, Any],
     output_stem: str,
     tex_output_path: Path,
     pdf_output_path: Path,
@@ -513,20 +525,19 @@ def _build_tailored_tex_document(
     feedback = ""
     last_error = "Unknown tailoring failure"
     for attempt in range(1, 4):
-        replacements = _run_tex_block_tailor(
-            api_key=api_key,
-            model=model,
-            document_type=document_type,
-            template_source=template_source,
-            analysis=analysis,
-            listing=listing,
-            tracker_row=tracker_row,
-            resume_profile=resume_profile,
-            max_pages=max_pages,
-            feedback=feedback,
-        )
-        tailored_tex = _replace_gpt_blocks(template_source, replacements)
         try:
+            replacements = _run_tex_block_tailor(
+                api_key=api_key,
+                model=model,
+                document_type=document_type,
+                template_source=template_source,
+                analysis=analysis,
+                listing=listing,
+                tracker_row=tracker_row,
+                max_pages=max_pages,
+                feedback=feedback,
+            )
+            tailored_tex = _replace_gpt_blocks(template_source, replacements)
             return _compile_tex_content(
                 tailored_tex,
                 pdf_output_path,
@@ -550,7 +561,6 @@ def _run_analysis(
     listing: dict[str, str],
     tracker_row: dict[str, str],
     resume_source: str,
-    resume_profile: dict[str, Any],
 ) -> dict[str, Any]:
     text = _responses_api_call(
         api_key,
@@ -566,7 +576,6 @@ def _run_analysis(
             },
             "tracker_row": tracker_row,
             "resume_source": resume_source,
-            "resume_profile": resume_profile,
         },
     )
     try:
@@ -575,44 +584,25 @@ def _run_analysis(
         raise RuntimeError(f"Analysis output was not valid JSON:\n{text}") from exc
 
 
-def _run_cover_letter_draft(
-    *,
-    api_key: str,
-    model: str,
-    listing: dict[str, str],
-    analysis: dict[str, Any],
-    resume_source: str,
-    resume_profile: dict[str, Any],
-) -> str:
-    return _responses_api_call(
-        api_key,
-        model,
-        _tailored_cover_letter_analysis_instructions(),
-        {
-            "job": listing,
-            "analysis": analysis,
-            "resume_source": resume_source,
-            "resume_profile": resume_profile,
-            "output_requirements": {
-                "format": "markdown",
-                "goal": "Write a concise role-specific cover letter draft",
-            },
-        },
-    )
-
-
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate tailored application materials for a tracked job.")
     parser.add_argument("--job-id", default="", help="Job ID from reports/job_tracker.csv")
     parser.add_argument("--url", default="", help="Job URL from reports/job_tracker.csv")
+    parser.add_argument(
+        "--all-review",
+        action="store_true",
+        help="Generate materials for every tracker row whose Status is Review.",
+    )
     parser.add_argument(
         "--model",
         default=os.environ.get("OPENAI_MODEL", "gpt-5.4-mini"),
         help="OpenAI model to use. Defaults to OPENAI_MODEL or gpt-5.4-mini.",
     )
     args = parser.parse_args()
-    if not args.job_id and not args.url:
-        parser.error("Pass either --job-id or --url")
+    if args.all_review and (args.job_id or args.url):
+        parser.error("--all-review cannot be combined with --job-id or --url")
+    if not args.all_review and not args.job_id and not args.url:
+        parser.error("Pass either --job-id, --url, or --all-review")
     return args
 
 
@@ -623,8 +613,6 @@ def prepare_application_materials(
     api_key: str,
     model: str,
 ) -> dict[str, Path]:
-    if not RESUME_PROFILE_PATH.exists():
-        raise SystemExit(f"Missing resume profile: {RESUME_PROFILE_PATH}")
     if not RESUME_TEX_PATH.exists():
         raise SystemExit(f"Missing base resume source: {RESUME_TEX_PATH}")
     if not COVER_LETTER_TEX_PATH.exists():
@@ -632,7 +620,6 @@ def prepare_application_materials(
 
     resume_source = RESUME_TEX_PATH.read_text(encoding="utf-8")
     cover_letter_source = COVER_LETTER_TEX_PATH.read_text(encoding="utf-8")
-    resume_profile = _load_json(RESUME_PROFILE_PATH)
 
     analysis = _run_analysis(
         api_key=api_key,
@@ -640,16 +627,18 @@ def prepare_application_materials(
         listing=listing,
         tracker_row=tracker_row,
         resume_source=resume_source,
-        resume_profile=resume_profile,
     )
 
     output_dir = _job_output_dir(tracker_row.get("Job ID", "").strip(), tracker_row.get("Position", "").strip())
     output_dir.mkdir(parents=True, exist_ok=True)
+    source_dir = output_dir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
 
-    resume_tex_path = output_dir / "resume.tex"
+    resume_tex_path = source_dir / "resume.tex"
     resume_pdf_path = output_dir / "resume.pdf"
-    cover_letter_tex_path = output_dir / "cover_letter.tex"
+    cover_letter_tex_path = source_dir / "cover_letter.tex"
     cover_letter_pdf_path = output_dir / "cover_letter.pdf"
+    cover_letter_warning_path = output_dir / "cover_letter_warning.txt"
 
     _build_tailored_tex_document(
         api_key=api_key,
@@ -659,31 +648,94 @@ def prepare_application_materials(
         analysis=analysis,
         listing=listing,
         tracker_row=tracker_row,
-        resume_profile=resume_profile,
         output_stem="resume",
         tex_output_path=resume_tex_path,
         pdf_output_path=resume_pdf_path,
     )
-    _build_tailored_tex_document(
-        api_key=api_key,
-        model=model,
-        document_type="cover letter",
-        template_source=cover_letter_source,
-        analysis=analysis,
-        listing=listing,
-        tracker_row=tracker_row,
-        resume_profile=resume_profile,
-        output_stem="cover_letter",
-        tex_output_path=cover_letter_tex_path,
-        pdf_output_path=cover_letter_pdf_path,
-    )
+    if cover_letter_warning_path.exists():
+        cover_letter_warning_path.unlink()
+    try:
+        _build_tailored_tex_document(
+            api_key=api_key,
+            model=model,
+            document_type="cover letter",
+            template_source=cover_letter_source,
+            analysis=analysis,
+            listing=listing,
+            tracker_row=tracker_row,
+            output_stem="cover_letter",
+            tex_output_path=cover_letter_tex_path,
+            pdf_output_path=cover_letter_pdf_path,
+        )
+    except RuntimeError as exc:
+        cover_letter_warning_path.write_text(
+            f"Cover letter generation failed after retries.\n{exc}\n",
+            encoding="utf-8",
+        )
     return {
         "output_dir": output_dir,
         "resume_tex": resume_tex_path,
         "resume_pdf": resume_pdf_path,
         "cover_letter_tex": cover_letter_tex_path,
         "cover_letter_pdf": cover_letter_pdf_path,
+        "cover_letter_warning": cover_letter_warning_path,
     }
+
+
+def build_review_materials(*, api_key: str, model: str) -> None:
+    tracker_rows = _migrate_tracker_rows(_read_csv(JOB_TRACKER_PATH))
+    listings = _read_csv(JOB_LISTINGS_PATH)
+    review_rows = [row for row in tracker_rows if row.get("Status", "").strip() == "Review"]
+    review_output_dirs = {
+        _job_output_dir(row.get("Job ID", "").strip(), row.get("Position", "").strip()).resolve()
+        for row in review_rows
+    }
+
+    removed_output_dirs = 0
+    if OUTPUTS_DIR.exists():
+        for child in OUTPUTS_DIR.iterdir():
+            if not child.is_dir():
+                continue
+            if child.name == "applications":
+                continue
+            if child.resolve() in review_output_dirs:
+                continue
+            shutil.rmtree(child)
+            removed_output_dirs += 1
+
+    built_resumes = 0
+    built_cover_letters = 0
+    skipped_rows = 0
+    for row in review_rows:
+        job_id = row.get("Job ID", "").strip()
+        job_url = row.get("Website", "").strip()
+        try:
+            listing = _find_listing(
+                listings,
+                job_id=job_id,
+                job_url=job_url,
+            )
+        except ValueError:
+            skipped_rows += 1
+            print(
+                "Skipping review row without matching listing: "
+                f"job_id={job_id or '<missing>'} url={job_url or '<missing>'}"
+            )
+            continue
+        prepare_application_materials(
+            tracker_row=row,
+            listing=listing,
+            api_key=api_key,
+            model=model,
+        )
+        built_resumes += 1
+        built_cover_letters += 1
+
+    print(f"Tracker rows scanned: {len(tracker_rows)}")
+    print(f"Review rows skipped: {skipped_rows}")
+    print(f"Non-review output folders removed: {removed_output_dirs}")
+    print(f"Review resumes built: {built_resumes}")
+    print(f"Review cover letters built: {built_cover_letters}")
 
 
 def main() -> None:
@@ -692,6 +744,9 @@ def main() -> None:
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         raise SystemExit("OPENAI_API_KEY is required. Set it in the environment or in .env")
+    if args.all_review:
+        build_review_materials(api_key=api_key, model=args.model)
+        return
     tracker_rows = _migrate_tracker_rows(_read_csv(JOB_TRACKER_PATH))
     listings = _read_csv(JOB_LISTINGS_PATH)
     tracker_row = _find_tracker_row(tracker_rows, job_id=args.job_id.strip(), job_url=args.url.strip())
@@ -713,6 +768,9 @@ def main() -> None:
     print(f"Resume PDF: {outputs['resume_pdf'].relative_to(BASE_DIR)}")
     print(f"Cover Letter TeX: {outputs['cover_letter_tex'].relative_to(BASE_DIR)}")
     print(f"Cover Letter PDF: {outputs['cover_letter_pdf'].relative_to(BASE_DIR)}")
+    cover_letter_warning = outputs["cover_letter_warning"]
+    if cover_letter_warning.exists():
+        print(f"Cover Letter Warning: {cover_letter_warning.relative_to(BASE_DIR)}")
 
 
 if __name__ == "__main__":

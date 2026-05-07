@@ -19,6 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      JOB_ALERTS_EMAIL_TO: iyongjae6@gmail.com
+      JOB_ALERTS_EMAIL_FROM: ${{ secrets.JOB_ALERTS_EMAIL_FROM }}
+      JOB_ALERTS_SMTP_HOST: ${{ secrets.JOB_ALERTS_SMTP_HOST }}
+      JOB_ALERTS_SMTP_PORT: ${{ secrets.JOB_ALERTS_SMTP_PORT }}
+      JOB_ALERTS_SMTP_USERNAME: ${{ secrets.JOB_ALERTS_SMTP_USERNAME }}
+      JOB_ALERTS_SMTP_PASSWORD: ${{ secrets.JOB_ALERTS_SMTP_PASSWORD }}
 
     steps:
       - name: Check out repository
@@ -49,14 +55,14 @@ jobs:
           python3 scripts/fetch_jobs.py
           python3 scripts/filter_jobs.py
           python3 scripts/sync_job_tracker.py
-          python3 scripts/build_review_resumes.py
+          python3 scripts/prepare_application.py --all-review
           python3 scripts/build_alert_report.py
 
       - name: Commit updated pipeline outputs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/fetch_runs.csv data/job_listings.csv reports/job_tracker.csv reports/alerts_*.md outputs/applications
+          git add data/fetch_runs.csv data/job_listings.csv reports/job_tracker.csv reports/alerts_*.md outputs
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
