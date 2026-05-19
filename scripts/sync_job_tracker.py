@@ -21,6 +21,7 @@ TRACKER_FIELDS = [
     "Contact",
     "Contacted",
     "Job ID",
+    "Description",
 ]
 
 
@@ -74,11 +75,13 @@ def sync_tracker() -> tuple[Path, int, int]:
     for tracker_row in tracker_rows:
         if not tracker_row.get("Date Added", "").strip():
             tracker_row["Date Added"] = today
+        website = tracker_row.get("Website", "").strip()
+        listing = listings_by_website.get(website)
         if not tracker_row.get("Job ID", "").strip():
-            website = tracker_row.get("Website", "").strip()
-            listing = listings_by_website.get(website)
             if listing:
                 tracker_row["Job ID"] = listing.get("job_id", "").strip()
+        if not tracker_row.get("Description", "").strip() and listing:
+            tracker_row["Description"] = listing.get("description", "").strip()
     kept_tracker_rows: list[dict[str, str]] = []
     removed_count = 0
     for tracker_row in tracker_rows:
@@ -118,6 +121,7 @@ def sync_tracker() -> tuple[Path, int, int]:
                 "Contact": "",
                 "Contacted": "",
                 "Job ID": job_id,
+                "Description": listing.get("description", "").strip(),
             }
         )
 

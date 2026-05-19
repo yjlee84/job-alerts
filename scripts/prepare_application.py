@@ -41,6 +41,7 @@ TRACKER_FIELDS = [
     "Contact",
     "Contacted",
     "Job ID",
+    "Description",
 ]
 
 GPT_BLOCK_PATTERN = re.compile(
@@ -123,6 +124,17 @@ def _find_listing(
         if job_url and row.get("job_url", "").strip() == job_url:
             return row
     raise ValueError("Matching job listing was not found in data/job_listings.csv")
+
+
+def _listing_from_tracker_row(tracker_row: dict[str, str]) -> dict[str, str]:
+    return {
+        "company": tracker_row.get("Company", "").strip(),
+        "job_title": tracker_row.get("Position", "").strip(),
+        "job_url": tracker_row.get("Website", "").strip(),
+        "job_id": tracker_row.get("Job ID", "").strip(),
+        "date_posted": "",
+        "description": tracker_row.get("Description", "").strip(),
+    }
 
 
 def _extract_text_response(payload: dict[str, Any]) -> str:
@@ -716,12 +728,15 @@ def build_review_materials(*, api_key: str, model: str) -> None:
                 job_url=job_url,
             )
         except ValueError:
-            skipped_rows += 1
-            print(
-                "Skipping review row without matching listing: "
-                f"job_id={job_id or '<missing>'} url={job_url or '<missing>'}"
-            )
-            continue
+            tracker_description = row.get("Description", "").strip()
+            if not tracker_description:
+                skipped_rows += 1
+                print(
+                    "Skipping review row without matching listing or stored description: "
+                    f"job_id={job_id or '<missing>'} url={job_url or '<missing>'}"
+                )
+                continue
+            listing = _listing_from_tracker_row(row)
         prepare_application_materials(
             tracker_row=row,
             listing=listing,
@@ -750,11 +765,17 @@ def main() -> None:
     tracker_rows = _migrate_tracker_rows(_read_csv(JOB_TRACKER_PATH))
     listings = _read_csv(JOB_LISTINGS_PATH)
     tracker_row = _find_tracker_row(tracker_rows, job_id=args.job_id.strip(), job_url=args.url.strip())
-    listing = _find_listing(
-        listings,
-        job_id=tracker_row.get("Job ID", "").strip() or args.job_id.strip(),
-        job_url=tracker_row.get("Website", "").strip() or args.url.strip(),
-    )
+    try:
+        listing = _find_listing(
+            listings,
+            job_id=tracker_row.get("Job ID", "").strip() or args.job_id.strip(),
+            job_url=tracker_row.get("Website", "").strip() or args.url.strip(),
+        )
+    except ValueError:
+        tracker_description = tracker_row.get("Description", "").strip()
+        if not tracker_description:
+            raise
+        listing = _listing_from_tracker_row(tracker_row)
 
     outputs = prepare_application_materials(
         tracker_row=tracker_row,
