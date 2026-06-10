@@ -1,2 +1,0 @@
-Cover letter generation failed after retries.
-Unable to build tailored cover letter: Replacement for block STRENGTHS_BULLETS changed the number of \item entries from 2 to 3
