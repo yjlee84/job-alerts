@@ -49,6 +49,11 @@ GPT_BLOCK_PATTERN = re.compile(
 )
 MAX_DOC_PAGES = 1
 DEFAULT_PRIORITY_KEYWORD_COUNT = 8
+RESUME_SUMMARY_MAX_WORDS = 30
+RESUME_PIPE_LIST_LIMITS = {
+    "CORE_COMPETENCIES": 8,
+    "TECHNICAL_ACUMEN": 8,
+}
 RESUME_EDITABLE_BLOCKS = {
     "SUMMARY",
     "CORE_COMPETENCIES",
@@ -338,6 +343,37 @@ def _count_vspace_commands(text: str) -> int:
     return len(re.findall(r"\\vspace\{[^}]+\}", text))
 
 
+def _latex_word_count(text: str) -> int:
+    without_commands = re.sub(r"\\[A-Za-z]+(?:\{[^}]*\})?", " ", text)
+    return len(re.findall(r"[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?", without_commands))
+
+
+def _pipe_list_item_count(text: str) -> int:
+    if ":" not in text:
+        return 0
+    _, values = text.split(":", 1)
+    values = values.replace("\\\\", "")
+    return len([item for item in values.split("|") if item.strip()])
+
+
+def _validate_resume_block_budget(name: str, replacement: str) -> None:
+    if name == "SUMMARY":
+        word_count = _latex_word_count(replacement)
+        if word_count > RESUME_SUMMARY_MAX_WORDS:
+            raise RuntimeError(
+                f"Replacement for block {name} has {word_count} words; "
+                f"maximum is {RESUME_SUMMARY_MAX_WORDS}"
+            )
+    if name in RESUME_PIPE_LIST_LIMITS:
+        item_count = _pipe_list_item_count(replacement)
+        max_items = RESUME_PIPE_LIST_LIMITS[name]
+        if item_count > max_items:
+            raise RuntimeError(
+                f"Replacement for block {name} has {item_count} pipe-separated items; "
+                f"maximum is {max_items}"
+            )
+
+
 def _validate_gpt_replacements(original_blocks: dict[str, str], replacements: dict[str, Any]) -> dict[str, str]:
     normalized: dict[str, str] = {}
     expected = set(original_blocks)
@@ -371,6 +407,8 @@ def _validate_gpt_replacements(original_blocks: dict[str, str], replacements: di
                     f"Replacement for block {name} changed \\vspace commands "
                     f"from {_count_vspace_commands(original)} to {_count_vspace_commands(replacement)}"
                 )
+        if name in RESUME_EDITABLE_BLOCKS:
+            _validate_resume_block_budget(name, replacement)
         normalized[name] = replacement.strip()
     return normalized
 
@@ -469,6 +507,9 @@ def _tex_tailoring_instructions(*, document_type: str, max_pages: int) -> str:
             "Keep each editable block in the same presentation style it already uses. "
             "For example: keep SUMMARY as a plain paragraph, CORE_COMPETENCIES as a labeled competency line, "
             "and TECHNICAL_ACUMEN as a labeled tools line. "
+            f"Hard length limits: SUMMARY must be at most {RESUME_SUMMARY_MAX_WORDS} words, "
+            f"CORE_COMPETENCIES must contain at most {RESUME_PIPE_LIST_LIMITS['CORE_COMPETENCIES']} pipe-separated items, "
+            f"and TECHNICAL_ACUMEN must contain at most {RESUME_PIPE_LIST_LIMITS['TECHNICAL_ACUMEN']} pipe-separated items. "
             "Use job-description language naturally and only when supported by the supplied resume. "
             "Do not keyword-stuff. Preserve the candidate's existing voice and factual scope."
         )
