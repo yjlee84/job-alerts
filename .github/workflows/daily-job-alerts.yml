@@ -62,7 +62,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/fetch_runs.csv data/job_listings.csv reports/job_tracker.csv reports/alerts_*.md outputs
+          git add data/fetch_runs.csv data/job_listings.csv reports/job_tracker.csv reports/alerts_*.md
+          if [ -d outputs ]; then
+            git add outputs
+          fi
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
