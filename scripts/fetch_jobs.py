@@ -308,7 +308,7 @@ def _smartrecruiters_title(html_text: str) -> str:
 
 
 def _extract_grade(text: str) -> str:
-    match = re.search(r"\bGrade:\s*([A-Z]{2,}\d+)\b", text, flags=re.IGNORECASE)
+    match = re.search(r"\bGrade:\s*([A-Z]+\d+)\b", text, flags=re.IGNORECASE)
     if not match:
         return ""
     return match.group(1).upper()

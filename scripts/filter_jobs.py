@@ -73,7 +73,7 @@ def strip_html_tags(text: str) -> str:
 
 
 def extract_grade(text: str) -> str:
-    match = re.search(r"\bGrade:\s*([A-Z]{2,}\d+)\b", text, flags=re.IGNORECASE)
+    match = re.search(r"\bGrade:\s*([A-Z]+\d+)\b", text, flags=re.IGNORECASE)
     if not match:
         return ""
     return match.group(1).upper()

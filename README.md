@@ -99,7 +99,7 @@ Example:
 
 ```csv
 source_id,enabled,allowed_grades
-oecd_smartrecruiters,1,PAL1|PAL2|PAL3|PAL4|PAL5
+oecd_smartrecruiters,1,PAL1|PAL2|PAL3|PAL4|PAL5|PAL6|T5|T6
 ```
 
 ## Login Sync Flow
