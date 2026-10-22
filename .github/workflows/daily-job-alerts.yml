@@ -1,75 +1,70 @@
-name: Job Alerts
+name: Daily Job Applications
 
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: '0 9 * * *'
+      timezone: Europe/Berlin
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  OPENAI_MODEL: gpt-5.4-mini
+    inputs:
+      mode:
+        description: Run applications or inspect cloud browser access without applying
+        type: choice
+        options: [apply, probe]
+        default: apply
 
 permissions:
   contents: write
 
+concurrency:
+  group: job-applications-production
+  cancel-in-progress: false
+
+env:
+  OPENAI_MODEL: gpt-5.4-mini
+  PYTHONUNBUFFERED: '1'
+
 jobs:
-  run-pipeline:
-    if: github.actor != 'github-actions[bot]'
+  apply:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     env:
+      JOB_ALERTS_CLOUD: '1'
+      BROWSER_HEADLESS: '0'
+      GITHUB_TOKEN: ${{ github.token }}
+      JOB_ALERTS_STATE_KEY: ${{ secrets.JOB_ALERTS_STATE_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      JOB_ALERTS_EMAIL_TO: iyongjae6@gmail.com
+      JOB_ALERTS_EMAIL_TO: ${{ secrets.JOB_ALERTS_EMAIL_TO }}
       JOB_ALERTS_EMAIL_FROM: ${{ secrets.JOB_ALERTS_EMAIL_FROM }}
       JOB_ALERTS_SMTP_HOST: ${{ secrets.JOB_ALERTS_SMTP_HOST }}
       JOB_ALERTS_SMTP_PORT: ${{ secrets.JOB_ALERTS_SMTP_PORT }}
       JOB_ALERTS_SMTP_USERNAME: ${{ secrets.JOB_ALERTS_SMTP_USERNAME }}
       JOB_ALERTS_SMTP_PASSWORD: ${{ secrets.JOB_ALERTS_SMTP_PASSWORD }}
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+          ref: main
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Set up TeX Live
+          python-version: '3.12'
+      - name: Install browser and encryption dependencies
+        run: |
+          python -m pip install -r requirements-browser.txt
+          python -m playwright install --with-deps chromium
+      - name: Run safety tests
+        env:
+          JOB_ALERTS_CLOUD: '0'
+        run: python -m unittest discover -s tests -v
+      - name: Install document tools
+        if: inputs.mode != 'probe'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            latexmk \
-            biber \
-            texlive-latex-base \
-            texlive-latex-recommended \
-            texlive-latex-extra \
-            texlive-fonts-extra \
-            texlive-bibtex-extra \
-            poppler-utils
-
-      - name: Run job alerts pipeline
-        run: |
-          python3 scripts/fetch_jobs.py
-          python3 scripts/filter_jobs.py
-          python3 scripts/sync_job_tracker.py
-          python3 scripts/prepare_application.py --all-review
-          python3 scripts/build_alert_report.py
-
-      - name: Commit updated pipeline outputs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/fetch_runs.csv data/job_listings.csv
-          git add -A reports
-          if [ -d outputs ]; then
-            git add outputs
-          fi
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-          git commit -m "Update job alerts outputs"
-          git push
+          sudo apt-get install -y latexmk biber texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-fonts-extra texlive-bibtex-extra poppler-utils
+      - name: Check cloud browser access without applying
+        if: inputs.mode == 'probe'
+        run: xvfb-run -a python scripts/cloud_runner.py --probe
+      - name: Discover, tailor, apply, save receipts and email confirmations
+        if: inputs.mode != 'probe'
+        run: xvfb-run -a python scripts/cloud_runner.py
+      - name: Sync tracker, descriptions and tailored documents to the project
+        if: always() && inputs.mode != 'probe'
+        run: python scripts/publish_cloud_outputs.py

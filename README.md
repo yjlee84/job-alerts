@@ -1,183 +1,92 @@
-# Job Alerts Pipeline
+# Daily job applications
 
-This is a `v1` local pipeline for collecting job postings from target career pages into one normalized CSV.
+GitHub Actions runs the pipeline daily at **09:00 Europe/Berlin**, with automatic
+summer/winter time handling. The Mac can be closed. The local login application
+runner is disabled; there are no login or periodic Mac submission runs.
 
-## Layout
+The workflow discovers jobs, applies `config/filters.csv`, updates
+`reports/job_tracker.csv`, prepares missing tailored documents, fills the OECD
+Easy Apply form in a cloud Chromium browser, submits valid applications, saves
+confirmed receipts, and emails confirmations. A manual workflow Run now button
+is also available. Scheduled starts can be delayed by GitHub.
 
-- `config/sources.csv`: target sources to scan
-- `data/job_listings.csv`: normalized job listings output
-- `data/fetch_runs.csv`: source-level fetch log
-- `config/filters.csv`: source-level rule configuration for Stage 1 filtering
-- `reports/`: generated Markdown reports
-- `scripts/fetch_jobs.py`: fetch and normalize job links from each source
-- `scripts/filter_jobs.py`: rewrite `data/job_listings.csv` to only the currently matched candidate jobs
-- `scripts/build_alert_report.py`: build the daily Markdown alert report and send it as an email notification
-- `scripts/sync_job_tracker.py`: append only matched new jobs into `reports/job_tracker.csv`
-- `assets/`: source resume assets used for resume compilation and application prep
-- `outputs/`: per-job generated application materials
-- `scripts/prepare_application.py`: generate tailored resume and cover letter drafts for a tracked job or for every tracker row whose `Status` is `Review`
+## Familiar project records
 
-## Source Format
+- `reports/job_tracker.csv`: application status, application date, follow-up action
+  and the job description. Manual tracker changes on main are retained.
+- `outputs/<job_id>/resume.pdf` and `cover_letter.pdf`: per-job tailored documents.
+- `outputs/<job_id>/job_description.txt`: saved description for interview preparation.
+- `outputs/<job_id>/source/`: editable tailored TeX sources.
 
-Edit `config/sources.csv` with one row per source:
+The cloud runner commits these outputs back to main, as the earlier project did.
+Existing PDFs and historical job descriptions are retained rather than deleted
+when a job leaves Review. Already-applied and closed postings are skipped even
+when tracking parameters or the listing slug change.
 
-- `source_id`: short stable identifier
-- `company`: display name
-- `careers_url`: page to scan
-- `parser_type`: use `links` for the current `v1`
-- `enabled`: `1` or `0`
+## Private cloud state
 
-Example:
+The repository is public. Profile information, reference contacts, screening
+answers, browser session state and submission receipts are therefore encrypted
+before being saved in `cloud-state.enc` on the `application-state` branch. The
+encryption key is a GitHub Actions secret, with a backup at
+`.local/cloud/state-key` on this Mac. These records are never published as plain
+text or uploaded as public Actions artifacts.
 
-```csv
-source_id,company,careers_url,parser_type,enabled
-oecd,OECD,https://example.com/careers,links,1
-```
+A submission intent and the exact materials reach durable cloud storage **before
+Submit is clicked**. A positive portal confirmation plus a successful application
+response is required before marking Applied. Interrupted or uncertain attempts
+never automatically resubmit. Confirmed receipts recover interrupted tracker
+updates; pending emails retry without resubmitting. Later manual Interview or
+Rejected statuses are preserved. SMTP acknowledgement failures can cause a
+repeated email, but do not cause a repeated application.
 
-## Run
-
-```bash
-python3 scripts/fetch_jobs.py
-python3 scripts/filter_jobs.py
-python3 scripts/sync_job_tracker.py
-python3 scripts/prepare_application.py --all-review
-python3 scripts/build_alert_report.py
-```
-
-## Application Prep
-
-The GPT-backed application prep workflow uses the existing `description` column in `data/job_listings.csv` instead of separate job-description files. GPT sees the full `.tex` files, but is only allowed to rewrite named `GPT` blocks inside those templates.
-
-Source files:
-
-- `assets/cv.tex`: base resume source used to build the application resume PDF
-- `assets/citations.bib`: LaTeX bibliography source used during resume compilation
-- `assets/letter.tex`: base cover letter source used to build the application cover letter PDF
-
-Generated files:
-
-- `outputs/<job_id>/source/resume.tex`
-- `outputs/<job_id>/resume.pdf`
-- `outputs/<job_id>/source/cover_letter.tex`
-- `outputs/<job_id>/cover_letter.pdf`
-
-Usage:
+To download cloud receipts and private interview archives into this project:
 
 ```bash
-cp .env.example .env
-# edit .env and set OPENAI_API_KEY
-python3 scripts/prepare_application.py --job-id <job_id>
+.venv/bin/python scripts/cloud_state.py download
 ```
 
-Email notification setup:
+Private answers and receipts then appear under
+`.local/applications/<job_id>/interview/`. Public documents remain in `outputs/`.
+Keep `.local/cloud/state-key`; it is required to decrypt the downloaded state.
+Do not reseed cloud state from an old local tracker: the deploy script refuses
+to overwrite an existing cloud application ledger.
 
-- `JOB_ALERTS_EMAIL_TO`: recipient email address
-- `JOB_ALERTS_EMAIL_FROM`: sender email address
-- `JOB_ALERTS_SMTP_HOST`: SMTP host, for example `smtp.gmail.com`
-- `JOB_ALERTS_SMTP_PORT`: SMTP port, usually `587`
-- `JOB_ALERTS_SMTP_USERNAME`: SMTP username
-- `JOB_ALERTS_SMTP_PASSWORD`: SMTP password or app password
+## Browser behavior and exceptions
 
-Notes:
+The worker uses ordinary Playwright Chromium in the cloud. It does not spoof a
+browser identity, rotate proxies, or bypass CAPTCHAs or access restrictions.
+Blocked access, changed forms and unknown factual answers produce a distinct
+needs-attention email and never an application-confirmation email. The cloud
+workflow includes a probe mode that only opens the public Easy Apply form and
+checks visibility; it never uploads documents or submits an application.
 
-- The script reads the matching job description from `data/job_listings.csv`.
-- It does not store generated document metadata in `reports/job_tracker.csv`.
-- GPT receives the full LaTeX templates but may only rewrite named `GPT` blocks inside them.
-- Tailored resume and cover-letter outputs must compile successfully and stay within a one-page PDF limit.
-- The analysis and tailoring steps remain constrained by `assets/cv.tex` and `assets/letter.tex`.
-- `.env` is project-local and ignored by git.
+The personal profile supplies verified facts. GPT drafts free-text answers from
+the job description and resume. The hiring-team message uses an email format
+and the confirmed signature, without a blank line after Kind regards. The form
+worker’s API ledger is capped at $0.03 per job across reruns; existing CV and
+cover-letter generation has separate API usage. Failed or unknown paid requests
+retain their reserved budget. Cloud runner/storage usage is separate from API
+usage.
 
-## Filter Format
+## Development and deployment
 
-Edit `config/filters.csv` with one row per source rule:
-
-- `source_id`: source identifier from `config/sources.csv`
-- `enabled`: `1` or `0`
-- `allowed_grades`: pipe-separated allowed grades for sources that expose grades
-
-Example:
-
-```csv
-source_id,enabled,allowed_grades
-oecd_smartrecruiters,1,PAL1|PAL2|PAL3|PAL4|PAL5|PAL6|T5|T6
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-browser.txt
+.venv/bin/python -m playwright install chromium --only-shell
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
-## Login Sync Flow
+`config/sources.csv` enables sources. `config/filters.csv` currently matches OECD
+PAL1–PAL6 and T5–T6. `.env` holds local OpenAI/SMTP credentials; GitHub Actions
+uses repository secrets. The initial cloud deployment is provisioned with
+`scripts/deploy_cloud.py`, followed by pushing the workflow and running probe
+mode. The production workflow serializes scheduled and manual runs to prevent
+concurrent submissions. A failed encrypted checkpoint stops any later submit
+click or form-answer API call.
 
-The repository workflow keeps manual runs via `workflow_dispatch` and also runs on each push to `main`.
-
-The intended login-driven sync is:
-
-1. macOS loads the local LaunchAgent at login
-2. the local sync script waits until GitHub and `origin` are reachable
-3. it commits local `reports/job_tracker.csv` changes, or creates an empty trigger commit if the tracker is unchanged
-4. it runs `git pull --rebase`
-5. it pushes to `main`
-6. the GitHub Actions workflow runs the pipeline and commits updated outputs
-7. the local sync script waits for that pipeline commit, then pulls it back down
-
-This keeps `job_tracker.csv` flowing from local to GitHub first, then brings the generated listings and reports back from GitHub to local.
-
-The script:
-
-1. reads `config/sources.csv`
-2. fetches each enabled URL
-3. extracts likely job links and titles
-4. appends new rows into `data/job_listings.csv`
-5. records fetch status in `data/fetch_runs.csv`
-
-The alert builder:
-
-1. reads `data/job_listings.csv`
-2. reads `reports/job_tracker.csv`
-3. writes `New Jobs` from rows whose `Date Added` is today
-4. writes `Review Jobs` from rows whose `Status` is `Review`
-5. writes `reports/alerts_YYYY-MM-DD.md` for the current UTC run date and removes older alert report files so only one remains
-
-The tracker sync:
-
-1. reads `data/job_listings.csv`
-2. reads `reports/job_tracker.csv`
-3. checks whether each `Job ID` already exists in the tracker
-4. appends only unseen jobs
-5. uses default values `Status = Review` and `Next Action = Apply`
-
-The review materials builder:
-
-1. reads `reports/job_tracker.csv`
-2. selects rows whose `Status` is `Review`
-3. removes `outputs/<job_id>/` folders for jobs no longer marked `Review`
-4. reads the matching job description from `data/job_listings.csv`
-5. asks GPT for JSON block replacements against the `GPT` regions in `assets/cv.tex`
-6. renders `outputs/<job_id>/source/resume.tex`
-7. compiles `outputs/<job_id>/resume.pdf` and rejects outputs over one page
-8. asks GPT for JSON block replacements against the `GPT` regions in `assets/letter.tex`
-9. renders `outputs/<job_id>/source/cover_letter.tex`
-10. compiles `outputs/<job_id>/cover_letter.pdf` and rejects outputs over one page
-
-The filter step:
-
-1. reads `config/filters.csv`
-2. reads `data/job_listings.csv`
-3. applies the source-specific grade rules
-4. rewrites `data/job_listings.csv` to keep only matched candidate jobs
-
-The intended daily workflow:
-
-1. run `fetch_jobs.py` once per day
-2. run `filter_jobs.py` to turn `job_listings.csv` into the filtered candidate list
-3. run `sync_job_tracker.py` to append only unseen candidate jobs into the tracker
-4. run `prepare_application.py --all-review` to keep `outputs/` aligned to current `Review` rows and create `resume.pdf` and `cover_letter.pdf` for each of them
-5. run `build_alert_report.py`
-6. `build_alert_report.py` sends the latest Markdown report as the email body
-7. the report shows:
-   `New Jobs`: jobs added to the tracker today
-   `Review Jobs`: jobs currently marked `Review` in `job_tracker.csv`
-
-## Notes
-
-- `v1` is intentionally simple and dependency-free.
-- It uses generic HTML link extraction, so some sites will work better than others.
-- The next step is to add source-specific parsers for platforms like Greenhouse, Lever, SmartRecruiters, and Workday.
-- SmartRecruiters sources can enrich rows with structured location, posting date, and full posting description.
-- After collection is reliable, AI scoring can be added on top of `data/job_listings.csv`.
+The earlier supervised Safari worker remains available for explicit local work.
+Its Junior Policy Analyst trial on 22 October 2026 returned a confirmed portal
+receipt, updated the tracker and sent a confirmation email. Cloud browser
+compatibility is verified separately through the deployed workflow.

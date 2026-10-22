@@ -1,0 +1,25 @@
+{
+  "sources": ["Your résumé URL or source"],
+  "personal": {
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "phone": "",
+    "city": "",
+    "country": "",
+    "nationality": "",
+    "website": "",
+    "github": ""
+  },
+  "preferences": {
+    "work_authorization": null,
+    "work_authorization_note": "Specify country and sponsorship separately; a general yes is insufficient for specific eligibility questions.",
+    "relocation": null,
+    "availability": ""
+  },
+  "resume_text": "Paste verified résumé facts here. Do not include credentials or passwords.",
+  "confirmed_answers": {},
+  "employment": [],
+  "education": [],
+  "review_notes": []
+}

@@ -739,22 +739,8 @@ def build_review_materials(*, api_key: str, model: str) -> None:
     tracker_rows = _migrate_tracker_rows(_read_csv(JOB_TRACKER_PATH))
     listings = _read_csv(JOB_LISTINGS_PATH)
     review_rows = [row for row in tracker_rows if row.get("Status", "").strip() == "Review"]
-    review_output_dirs = {
-        _job_output_dir(row.get("Job ID", "").strip(), row.get("Position", "").strip()).resolve()
-        for row in review_rows
-    }
-
-    removed_output_dirs = 0
-    if OUTPUTS_DIR.exists():
-        for child in OUTPUTS_DIR.iterdir():
-            if not child.is_dir():
-                continue
-            if child.name == "applications":
-                continue
-            if child.resolve() in review_output_dirs:
-                continue
-            shutil.rmtree(child)
-            removed_output_dirs += 1
+    # Materials are historical records, including when a listing disappears
+    # or its tracker status becomes Applied. Never delete them automatically.
 
     built_resumes = 0
     built_cover_letters = 0
@@ -762,6 +748,10 @@ def build_review_materials(*, api_key: str, model: str) -> None:
     for row in review_rows:
         job_id = row.get("Job ID", "").strip()
         job_url = row.get("Website", "").strip()
+        output_dir = _job_output_dir(job_id, row.get("Position", "").strip())
+        if (output_dir / "resume.pdf").exists() and (output_dir / "cover_letter.pdf").exists():
+            skipped_rows += 1
+            continue
         try:
             listing = _find_listing(
                 listings,
@@ -789,7 +779,6 @@ def build_review_materials(*, api_key: str, model: str) -> None:
 
     print(f"Tracker rows scanned: {len(tracker_rows)}")
     print(f"Review rows skipped: {skipped_rows}")
-    print(f"Non-review output folders removed: {removed_output_dirs}")
     print(f"Review resumes built: {built_resumes}")
     print(f"Review cover letters built: {built_cover_letters}")
 
