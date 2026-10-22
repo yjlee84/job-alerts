@@ -293,7 +293,7 @@ def main() -> None:
     _load_dotenv(DOTENV_PATH)
     report_path = build_report()
     print(f"Report written to: {report_path}")
-    # Application confirmations are sent by run_automation.py instead.
+    send_report_email(report_path)
 
 
 if __name__ == "__main__":
