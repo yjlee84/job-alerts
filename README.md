@@ -7,7 +7,9 @@ runner is disabled; there are no login or periodic Mac submission runs.
 The workflow discovers jobs, applies `config/filters.csv`, updates
 `reports/job_tracker.csv`, prepares missing tailored documents, fills the OECD
 Easy Apply form in a cloud Chromium browser, submits valid applications, saves
-confirmed receipts, and emails confirmations. A manual workflow Run now button
+confirmed receipts, and updates the tracker. Company confirmation emails are
+sufficient; this project’s duplicate submitted-application emails are disabled.
+Separate needs-attention emails remain enabled for blocked or failed attempts. A manual workflow Run now button
 is also available. Scheduled starts can be delayed by GitHub.
 
 ## Familiar project records
@@ -36,9 +38,9 @@ A submission intent and the exact materials reach durable cloud storage **before
 Submit is clicked**. A positive portal confirmation plus a successful application
 response is required before marking Applied. Interrupted or uncertain attempts
 never automatically resubmit. Confirmed receipts recover interrupted tracker
-updates; pending emails retry without resubmitting. Later manual Interview or
+updates; pending exception emails retry without resubmitting. Later manual Interview or
 Rejected statuses are preserved. SMTP acknowledgement failures can cause a
-repeated email, but do not cause a repeated application.
+repeated exception email, but do not cause a repeated application.
 
 To download cloud receipts and private interview archives into this project:
 

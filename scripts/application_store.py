@@ -146,6 +146,12 @@ class ApplicationStore:
 
     def notify(self):
         if self.state['status']!='confirmed' or self.state.get('notification_sent'):return False
+        if os.environ.get('JOB_ALERTS_CONFIRMATION_EMAILS','0').lower() not in {'1','true','yes'}:
+            if self.state.get('notification_status')!='disabled':
+                self.state['notification_status']='disabled';save(self.path,self.state)
+                from cloud_state import checkpoint
+                checkpoint()
+            return False
         # A failed email leaves an outbox item, not a reason to submit again.
         username=os.environ.get('JOB_ALERTS_SMTP_USERNAME','')
         password=os.environ.get('JOB_ALERTS_SMTP_PASSWORD','')

@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 90
     env:
       JOB_ALERTS_CLOUD: '1'
+      JOB_ALERTS_CONFIRMATION_EMAILS: '0'
       BROWSER_HEADLESS: '0'
       GITHUB_TOKEN: ${{ github.token }}
       JOB_ALERTS_STATE_KEY: ${{ secrets.JOB_ALERTS_STATE_KEY }}
@@ -62,7 +63,7 @@ jobs:
       - name: Check cloud browser access without applying
         if: inputs.mode == 'probe'
         run: xvfb-run -a python scripts/cloud_runner.py --probe
-      - name: Discover, tailor, apply, save receipts and email confirmations
+      - name: Discover, tailor, apply and update the tracker
         if: inputs.mode != 'probe'
         run: xvfb-run -a python scripts/cloud_runner.py
       - name: Sync tracker, descriptions and tailored documents to the project

@@ -3,6 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from application_store import ApplicationStore,posting_key
@@ -46,6 +47,11 @@ class DurableSubmissionTests(unittest.TestCase):
     def test_invalid_validation_never_creates_submission_intent(self):
         with self.assertRaises(ValueError):self.store().begin(self.job,{'final_client_valid':False})
         self.assertFalse(self.store().path.exists())
+    def test_project_confirmation_emails_are_disabled(self):
+        store=self.store();store.begin(self.job,{'final_client_valid':True});store.confirm({'confirmed':True})
+        with patch.dict('os.environ',{'JOB_ALERTS_CONFIRMATION_EMAILS':'0'}),patch('application_store.smtplib.SMTP') as smtp:
+            self.assertFalse(store.notify());smtp.assert_not_called()
+        self.assertEqual(self.store().state['notification_status'],'disabled')
     def test_receipt_replay_preserves_later_manual_tracker_progress(self):
         store=self.store();store.begin(self.job,{'final_client_valid':True});store.confirm({'confirmed':True})
         path=self.root/'reports/job_tracker.csv'
